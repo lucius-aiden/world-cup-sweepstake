@@ -1,0 +1,44 @@
+app:
+  name: world-cup-sweepstake
+  timezone: UTC
+  log_level: INFO
+
+tournament:
+  competition_code: WC
+  season: 2026
+  name: FIFA World Cup 2026
+
+football_api:
+  provider: football_data
+  base_url: https://api.football-data.org/v4
+  api_key_env: FOOTBALL_DATA_API_KEY
+  timeout_seconds: 30
+
+storage:
+  database_path: data/sweepstake.db
+  participants_csv: config/participants.csv
+  leaderboard_output: output/leaderboard.xlsx
+
+sharepoint:
+  tenant_id_env: MS_TENANT_ID
+  client_id_env: MS_CLIENT_ID
+  client_secret_env: MS_CLIENT_SECRET
+  scope: https://graph.microsoft.com/.default
+  site_id_env: MS_SITE_ID
+  drive_id_env: MS_DRIVE_ID
+  file_item_id_env: MS_LEADERBOARD_ITEM_ID
+  file_path_env: MS_LEADERBOARD_PATH
+
+teams:
+  notifier: console
+  webhook_url_env: TEAMS_WEBHOOK_URL
+  tenant_id_env: MS_TENANT_ID
+  client_id_env: MS_CLIENT_ID
+  client_secret_env: MS_CLIENT_SECRET
+  team_id_env: MS_TEAM_ID
+  channel_id_env: MS_CHANNEL_ID
+
+job:
+  recent_matches_window_days: 7
+  top_n_summary: 3
+

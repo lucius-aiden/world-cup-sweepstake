@@ -1,0 +1,11 @@
+services:
+  sweepstake:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./output:/app/output
+    command: python -m src.main run-once
+

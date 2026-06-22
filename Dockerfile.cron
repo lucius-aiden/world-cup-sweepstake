@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends cron \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY config ./config
+COPY src ./src
+COPY docker/cron.d/sweepstake /etc/cron.d/sweepstake
+COPY docker/start-cron.sh /usr/local/bin/start-cron.sh
+
+RUN chmod 0644 /etc/cron.d/sweepstake \
+    && chmod +x /usr/local/bin/start-cron.sh \
+    && crontab /etc/cron.d/sweepstake \
+    && mkdir -p data output
+
+CMD ["/usr/local/bin/start-cron.sh"]
+

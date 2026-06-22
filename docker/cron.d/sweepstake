@@ -1,0 +1,5 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/15 * * * * root cd /app && /usr/local/bin/python -m src.main run-once >> /var/log/sweepstake.log 2>&1
+
