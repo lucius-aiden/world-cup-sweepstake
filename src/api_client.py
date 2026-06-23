@@ -53,7 +53,10 @@ class FootballDataOrgProvider(FootballDataProvider):
             params={"season": self.settings.season},
         )
         standings: dict[str, TeamStanding] = {}
-        for table_group in payload.get("standings", []):
+        raw_tables = payload.get("standings", [])
+        grouped_tables = [table for table in raw_tables if table.get("group")]
+        source_tables = grouped_tables or raw_tables
+        for table_group in source_tables:
             for index, entry in enumerate(table_group.get("table", []), start=1):
                 team = entry.get("team", {})
                 team_name = team.get("name") or team.get("shortName") or "Unknown"
