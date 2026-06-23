@@ -1,6 +1,6 @@
 app:
   name: world-cup-sweepstake
-  timezone: UTC
+  timezone: Europe/London
   log_level: INFO
 
 tournament:

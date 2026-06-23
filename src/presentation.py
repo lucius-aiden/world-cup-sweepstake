@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .leaderboard import build_leaderboard
 from .models import LeaderboardRow
@@ -100,6 +101,8 @@ def build_dashboard_view(
     leaderboard_inputs: list[dict],
     latest_match_row: dict | None = None,
 ) -> DashboardView:
+    timezone_name = settings.raw.get("app", {}).get("timezone", "Europe/London")
+    display_zone = ZoneInfo(timezone_name)
     leaderboard, _ = build_leaderboard(leaderboard_inputs, previous_ranks={})
     index_by_player = {row.player: row for row in leaderboard}
 
@@ -130,12 +133,12 @@ def build_dashboard_view(
         latest_match = MatchView(
             summary=f'{latest_match_row["home_team"]} {latest_match_row["home_score"]}-{latest_match_row["away_score"]} {latest_match_row["away_team"]}',
             stage=latest_match_row["stage"],
-            played_at=_format_match_time(latest_match_row["match_date"]),
+            played_at=_format_match_time(latest_match_row["match_date"], display_zone),
         )
 
     return DashboardView(
         tournament_name=settings.raw["tournament"]["name"],
-        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M GMT"),
+        generated_at=datetime.now(UTC).astimezone(display_zone).strftime("%Y-%m-%d %H:%M %Z"),
         leaderboard=leaderboard,
         table_rows=table_rows,
         podium=leaderboard[:3],
@@ -154,8 +157,8 @@ def _team_cell(team: dict) -> TeamCell:
     )
 
 
-def _format_match_time(raw: str) -> str:
+def _format_match_time(raw: str, display_zone: ZoneInfo) -> str:
     try:
-        return datetime.fromisoformat(raw).strftime("%Y-%m-%d %H:%M GMT")
+        return datetime.fromisoformat(raw).astimezone(display_zone).strftime("%Y-%m-%d %H:%M %Z")
     except ValueError:
         return raw
