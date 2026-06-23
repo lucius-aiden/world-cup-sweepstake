@@ -39,7 +39,11 @@
         </div>
       </section>
 
-      <section class="podium">
+      <section class="podium-section">
+        <div class="section-header">
+          <h2>Top 3 Players</h2>
+        </div>
+        <div class="podium">
         {% for row in view.podium %}
         <article class="podium-card">
           <span class="podium-rank">#{{ row.rank }}</span>
@@ -48,12 +52,12 @@
           <small>{{ row.teams_alive }} team{{ '' if row.teams_alive == 1 else 's' }} alive</small>
         </article>
         {% endfor %}
+        </div>
       </section>
 
       <section class="board">
         <div class="board-header">
           <h2>Participant Table</h2>
-          <p>Player names and team picks stay fixed here. Points, rankings, and tournament status update as results come in.</p>
         </div>
         <div class="table-wrap">
           <table>
