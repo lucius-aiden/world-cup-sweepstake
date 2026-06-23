@@ -22,7 +22,8 @@ def main() -> None:
         choices=["init-db", "sync-participants", "run-once", "serve", "build-site"],
         help="Operation to execute",
     )
-    args = parser.parse_args()
+    parse_args = getattr(parser, "parse_intermixed_args", parser.parse_args)
+    args = parse_args()
 
     settings = load_settings()
     connection = database.connect(settings.database_path)
