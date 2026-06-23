@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
   workflow_dispatch:
   schedule:
     - cron: "*/15 * * * *"
@@ -23,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -32,10 +35,39 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Build static dashboard
+      - name: Prepare branch worktrees
+        run: |
+          git fetch origin main dev
+          git worktree add .worktrees/main origin/main
+          git worktree add .worktrees/dev origin/dev
+
+      - name: Build production site from main
         env:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
-        run: python -m src.main build-site
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        working-directory: .worktrees/main
+        run: |
+          python -m src.main build-site
+          mkdir -p "${{ github.workspace }}/_site"
+          cp -R site/. "${{ github.workspace }}/_site/"
+
+      - name: Build sandbox site from dev
+        env:
+          FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
+          THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+        working-directory: .worktrees/dev
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from src.configuration import load_settings
+          from src.site import build_static_site
+
+          build_static_site(
+              load_settings(),
+              output_dir=Path("${{ github.workspace }}/_site/dev"),
+              site_base_path="/dev",
+          )
+          PY
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -43,10 +75,11 @@ jobs:
       - name: Upload site artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
 
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main' || github.event_name != 'push'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
