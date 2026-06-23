@@ -151,6 +151,8 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
     newly_completed: list[Match] = []
     with connection:
         for match in matches:
+            if not match.home_team or not match.away_team:
+                continue
             existing = connection.execute(
                 "SELECT status FROM matches WHERE match_id = ?",
                 (match.match_id,),
