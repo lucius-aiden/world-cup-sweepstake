@@ -80,7 +80,10 @@ def _affected_players(
     previous_points: dict[str, int] | None = None,
 ) -> list[MovementRecord]:
     previous_points = previous_points or {}
-    impacted_teams = {resolve_team_code(match.home_team), resolve_team_code(match.away_team)}
+    impacted_teams = {
+        resolve_team_code(match.home_team, match.home_team_code),
+        resolve_team_code(match.away_team, match.away_team_code),
+    }
     records: list[MovementRecord] = []
     for row in leaderboard:
         row_impacted = tuple(

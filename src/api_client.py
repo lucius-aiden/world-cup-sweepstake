@@ -95,6 +95,8 @@ class FootballDataOrgProvider(FootballDataProvider):
             match_id=str(item["id"]),
             home_team=item["homeTeam"]["name"],
             away_team=item["awayTeam"]["name"],
+            home_team_code=item["homeTeam"].get("tla"),
+            away_team_code=item["awayTeam"].get("tla"),
             home_score=full_time.get("home"),
             away_score=full_time.get("away"),
             status=item.get("status", "UNKNOWN"),

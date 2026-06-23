@@ -6,9 +6,9 @@ from src.standings import build_effective_standings
 
 def test_group_points_are_recomputed_from_completed_matches():
     matches = [
-        Match("1", "Argentina", "Austria", 2, 0, "FINISHED", datetime(2026, 6, 20, tzinfo=UTC), stage="GROUP_STAGE"),
-        Match("2", "Jordan", "Algeria", 1, 1, "FINISHED", datetime(2026, 6, 21, tzinfo=UTC), stage="GROUP_STAGE"),
-        Match("3", "Argentina", "Jordan", 0, 0, "FINISHED", datetime(2026, 6, 22, tzinfo=UTC), stage="GROUP_STAGE"),
+        Match("1", "Argentina", "Austria", "ARG", "AUT", 2, 0, "FINISHED", datetime(2026, 6, 20, tzinfo=UTC), stage="GROUP_STAGE"),
+        Match("2", "Jordan", "Algeria", "JOR", "ALG", 1, 1, "FINISHED", datetime(2026, 6, 21, tzinfo=UTC), stage="GROUP_STAGE"),
+        Match("3", "Argentina", "Jordan", "ARG", "JOR", 0, 0, "FINISHED", datetime(2026, 6, 22, tzinfo=UTC), stage="GROUP_STAGE"),
     ]
     provider = [
         TeamStanding("ARG", "Argentina", 2, 0, 0, 0, 0, 0, 0, 0, True),

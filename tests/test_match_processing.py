@@ -9,6 +9,8 @@ def test_affected_players_handles_country_aliases():
         match_id="1",
         home_team="United States",
         away_team="Brazil",
+        home_team_code="USA",
+        away_team_code="BRA",
         home_score=1,
         away_score=2,
         status="FINISHED",

@@ -17,6 +17,8 @@ class Match:
     match_id: str
     home_team: str
     away_team: str
+    home_team_code: Optional[str]
+    away_team_code: Optional[str]
     home_score: Optional[int]
     away_score: Optional[int]
     status: str

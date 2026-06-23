@@ -17,8 +17,8 @@ def build_effective_standings(
         if match.home_score is None or match.away_score is None:
             continue
 
-        home_code = resolve_team_code(match.home_team)
-        away_code = resolve_team_code(match.away_team)
+        home_code = resolve_team_code(match.home_team, match.home_team_code)
+        away_code = resolve_team_code(match.away_team, match.away_team_code)
         home = _current_standing(computed, standings_by_code, home_code, match.home_team)
         away = _current_standing(computed, standings_by_code, away_code, match.away_team)
 

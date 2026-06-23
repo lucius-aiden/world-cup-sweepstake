@@ -13,6 +13,8 @@ class StubProvider:
                 match_id="1",
                 home_team="Brazil",
                 away_team="Japan",
+                home_team_code="BRA",
+                away_team_code="JPN",
                 home_score=2,
                 away_score=1,
                 status="FINISHED",
