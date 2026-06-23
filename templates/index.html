@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ request.url_for('static', path='/styles.css') }}" />
+    <link rel="stylesheet" href="{{ asset_prefix }}/styles.css" />
   </head>
   <body>
     <main class="page-shell">
@@ -30,7 +30,7 @@
             <span class="meta-label">Latest Result</span>
             {% if view.latest_match %}
             <strong>{{ view.latest_match.summary }}</strong>
-            <span>{{ view.latest_match.played_at }}</span>
+            <span>{{ view.latest_match.stage or "Completed match" }} · {{ view.latest_match.played_at }}</span>
             {% else %}
             <strong>No completed match yet</strong>
             <span>Waiting for tournament data</span>
@@ -63,8 +63,10 @@
                 <th>Player</th>
                 <th>Team 1</th>
                 <th>Team 1 Points</th>
+                <th>Team 1 Status</th>
                 <th>Team 2</th>
                 <th>Team 2 Points</th>
+                <th>Team 2 Status</th>
                 <th>Total Points</th>
                 <th>Teams Alive</th>
               </tr>
@@ -81,6 +83,9 @@
                   </div>
                 </td>
                 <td class="center">{{ row.team_1.points }}</td>
+                <td class="center">
+                  <span class="status-pill {{ 'alive' if row.team_1.alive else 'eliminated' }}">{{ 'Alive' if row.team_1.alive else 'Out' }}</span>
+                </td>
                 <td>
                   <div class="team-cell">
                     <span class="flag">{{ row.team_2.flag }}</span>
@@ -88,6 +93,9 @@
                   </div>
                 </td>
                 <td class="center">{{ row.team_2.points }}</td>
+                <td class="center">
+                  <span class="status-pill {{ 'alive' if row.team_2.alive else 'eliminated' }}">{{ 'Alive' if row.team_2.alive else 'Out' }}</span>
+                </td>
                 <td class="center total">{{ row.total_points }}</td>
                 <td class="center">{{ row.teams_alive }}</td>
               </tr>
