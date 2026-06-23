@@ -46,8 +46,18 @@ def build_static_site(
         loader=FileSystemLoader(str(BASE_DIR / "templates")),
         autoescape=select_autoescape(["html", "xml"]),
     )
-    home_html = env.get_template("index.html").render(view=view)
-    leaderboard_html = env.get_template("leaderboard.html").render(view=view)
+    home_html = env.get_template("index.html").render(
+        view=view,
+        asset_prefix="./static",
+        home_href="./",
+        leaderboard_href="./leaderboard/",
+    )
+    leaderboard_html = env.get_template("leaderboard.html").render(
+        view=view,
+        asset_prefix="../static",
+        home_href="../",
+        leaderboard_href="./",
+    )
     (target_dir / "index.html").write_text(home_html, encoding="utf-8")
     (target_dir / "leaderboard" / "index.html").write_text(leaderboard_html, encoding="utf-8")
 

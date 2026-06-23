@@ -329,7 +329,7 @@ def _build_insight_sections(
             items=[
                 InsightItemView(
                     title=str(row["team_name"]),
-                    detail=f'{_group_label(row)} · {int(row["points"])} pts · {determine_team_status(row).label}',
+                    detail=f'{_group_label(row)} · {int(row["points"])} pts',
                     tone=determine_team_status(row).tone,
                 )
                 for row in teams_in_trouble

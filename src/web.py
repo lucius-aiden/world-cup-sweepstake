@@ -25,7 +25,16 @@ def index(request: Request) -> HTMLResponse:
     connection = database.connect(settings.database_path)
     database.migrate(connection)
     view = build_dashboard_view_from_database(settings, connection, site_base_path="")
-    return TEMPLATES.TemplateResponse("index.html", {"request": request, "view": view})
+    return TEMPLATES.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "view": view,
+            "asset_prefix": "/static",
+            "home_href": "/",
+            "leaderboard_href": "/leaderboard/",
+        },
+    )
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)
@@ -35,4 +44,13 @@ def leaderboard(request: Request) -> HTMLResponse:
     connection = database.connect(settings.database_path)
     database.migrate(connection)
     view = build_dashboard_view_from_database(settings, connection, site_base_path="")
-    return TEMPLATES.TemplateResponse("leaderboard.html", {"request": request, "view": view})
+    return TEMPLATES.TemplateResponse(
+        "leaderboard.html",
+        {
+            "request": request,
+            "view": view,
+            "asset_prefix": "/static",
+            "home_href": "/",
+            "leaderboard_href": "/leaderboard/",
+        },
+    )

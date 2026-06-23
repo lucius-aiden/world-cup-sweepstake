@@ -20,6 +20,7 @@ class StubProvider:
                 status="FINISHED",
                 match_date=datetime(2026, 6, 23, 6, 30, tzinfo=UTC),
                 stage="GROUP_STAGE",
+                group="GROUP_A",
             ),
             Match(
                 match_id="2",
@@ -32,6 +33,7 @@ class StubProvider:
                 status="TIMED",
                 match_date=datetime(2026, 6, 23, 19, 0, tzinfo=UTC),
                 stage="GROUP_STAGE",
+                group="GROUP_A",
             ),
         ]
 
@@ -94,5 +96,10 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert "Insights" in index_html
     assert "Leaderboard" in leaderboard_html
     assert "Alice" in leaderboard_html
+    assert 'href="./leaderboard/"' in index_html
+    assert 'href="../"' in leaderboard_html
+    assert 'href="./"' in leaderboard_html
+    assert 'href="./static/styles.css"' in index_html
+    assert 'href="../static/styles.css"' in leaderboard_html
     assert "Tournament win odds" not in leaderboard_html
     assert "Current leader:" in daily_message
