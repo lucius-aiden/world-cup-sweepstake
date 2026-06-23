@@ -139,12 +139,12 @@ def write_workbook(leaderboard: list[LeaderboardRow], output_path: Path) -> None
 
 
 def _status_label(alive: bool) -> str:
-    return "Alive" if alive else "Eliminated"
+    return "Still in" if alive else "Knocked out"
 
 
 def _apply_status_fill(cell, value: str) -> None:
-    cell.fill = ALIVE_FILL if value == "Alive" else ELIMINATED_FILL
-    cell.font = Font(color=WHITE if value == "Alive" else GRAY, bold=True)
+    cell.fill = ALIVE_FILL if value == "Still in" else ELIMINATED_FILL
+    cell.font = Font(color=WHITE if value == "Still in" else GRAY, bold=True)
 
 
 def _autosize(sheet) -> None:

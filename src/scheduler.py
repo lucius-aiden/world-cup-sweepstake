@@ -9,6 +9,7 @@ from .configuration import Settings
 from .leaderboard import build_leaderboard, write_workbook
 from .models import LeaderboardRow, Match, MovementRecord
 from .sharepoint import SharePointClient
+from .standings import build_effective_standings
 from .team_codes import resolve_team_code
 from .teams import TeamsNotifier
 
@@ -43,7 +44,7 @@ class SweepstakeService:
         completed_matches = [match for match in matches if self.provider.is_completed_status(match.status)]
         changed_matches = database.upsert_matches(connection, completed_matches)
 
-        standings = self.provider.fetch_standings()
+        standings = build_effective_standings(completed_matches, self.provider.fetch_standings())
         database.replace_team_standings(connection, standings)
 
         previous_ranks = database.fetch_rank_snapshot(connection)

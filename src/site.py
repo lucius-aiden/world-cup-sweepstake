@@ -9,6 +9,7 @@ from . import database
 from .api_client import build_provider
 from .configuration import Settings
 from .presentation import build_dashboard_view
+from .standings import build_effective_standings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -22,7 +23,7 @@ def build_static_site(settings: Settings) -> Path:
     matches = provider.fetch_recent_matches()
     completed_matches = [match for match in matches if provider.is_completed_status(match.status)]
     database.upsert_matches(connection, completed_matches)
-    database.replace_team_standings(connection, provider.fetch_standings())
+    database.replace_team_standings(connection, build_effective_standings(completed_matches, provider.fetch_standings()))
 
     leaderboard_inputs = [dict(row) for row in database.fetch_leaderboard_inputs(connection)]
     latest_match = database.fetch_latest_completed_match(connection)

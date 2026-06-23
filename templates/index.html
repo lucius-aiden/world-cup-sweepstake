@@ -15,11 +15,11 @@
         <div>
           <p class="eyebrow">Live Sweepstake Board</p>
           <h1>{{ view.tournament_name }}</h1>
-          <p class="subcopy">Dark scoreboard UI inspired by the participant tracker, with live totals, surviving teams, and podium positions.</p>
+          <p class="subcopy">Official Scoreboard UI for ELS 2026 Football World Cup Sweepstake. Track your teams and their performance in the world cup so far.</p>
         </div>
         <div class="meta-panels">
           <div class="meta-card">
-            <span class="meta-label">Generated</span>
+            <span class="meta-label">Latest Refresh</span>
             <strong>{{ view.generated_at }}</strong>
           </div>
           <div class="meta-card">
@@ -84,7 +84,7 @@
                 </td>
                 <td class="center">{{ row.team_1.points }}</td>
                 <td class="center">
-                  <span class="status-pill {{ 'alive' if row.team_1.alive else 'eliminated' }}">{{ 'Alive' if row.team_1.alive else 'Out' }}</span>
+                  <span class="status-pill {{ 'alive' if row.team_1.alive else 'eliminated' }}">{{ 'Still in' if row.team_1.alive else 'Knocked out' }}</span>
                 </td>
                 <td>
                   <div class="team-cell">
@@ -94,7 +94,7 @@
                 </td>
                 <td class="center">{{ row.team_2.points }}</td>
                 <td class="center">
-                  <span class="status-pill {{ 'alive' if row.team_2.alive else 'eliminated' }}">{{ 'Alive' if row.team_2.alive else 'Out' }}</span>
+                  <span class="status-pill {{ 'alive' if row.team_2.alive else 'eliminated' }}">{{ 'Still in' if row.team_2.alive else 'Knocked out' }}</span>
                 </td>
                 <td class="center total">{{ row.total_points }}</td>
                 <td class="center">{{ row.teams_alive }}</td>
