@@ -194,7 +194,7 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
         return StatusView(label="Alive", tone="alive")
     qualification = str(standing.get("qualification_status") or "").lower()
     alive = bool(standing.get("alive", 1))
-    group_position = _safe_int(standing.get("group_position"))
+    group_position = _normalized_group_position(standing)
     played = _safe_int(standing.get("played")) or 0
 
     if not alive or "eliminated" in qualification:
@@ -401,11 +401,20 @@ def _group_matches_by_team(matches_rows: list[dict[str, Any]]) -> dict[str, list
 def _group_label(standing: dict[str, Any] | None) -> str:
     if not standing:
         return "Group position TBD"
-    group_name = standing.get("group_name") or "Group stage"
-    group_position = standing.get("group_position")
-    if group_position is None:
-        return str(group_name)
+    group_name = standing.get("group_name")
+    group_position = _normalized_group_position(standing)
+    if not group_name or group_position is None:
+        return "Group position TBD"
     return f"{group_name} · {group_position}{_ordinal(int(group_position))}"
+
+
+def _normalized_group_position(standing: dict[str, Any] | None) -> int | None:
+    if not standing:
+        return None
+    position = _safe_int(standing.get("group_position"))
+    if position is None or position < 1 or position > 4:
+        return None
+    return position
 
 
 def _ordinal(value: int) -> str:

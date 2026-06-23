@@ -98,9 +98,59 @@ def test_dashboard_view_builds_expandable_team_card_data():
     assert row.team_1.win_odds == "5.50"
 
 
+def test_dashboard_view_hides_out_of_range_group_positions():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Germany", "team_code": "GER", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[
+            {
+                "team_code": "GER",
+                "team_name": "Germany",
+                "group_name": None,
+                "group_position": 22,
+                "played": 2,
+                "won": 2,
+                "drawn": 0,
+                "lost": 0,
+                "goals_for": 7,
+                "goals_against": 0,
+                "goal_difference": 7,
+                "points": 6,
+                "alive": 1,
+                "qualification_status": None,
+            },
+            {
+                "team_code": "FRA",
+                "team_name": "France",
+                "group_name": None,
+                "group_position": 26,
+                "played": 2,
+                "won": 2,
+                "drawn": 0,
+                "lost": 0,
+                "goals_for": 5,
+                "goals_against": 0,
+                "goal_difference": 5,
+                "points": 6,
+                "alive": 1,
+                "qualification_status": None,
+            },
+        ],
+        matches_rows=[],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_1.group_label == "Group position TBD"
+    assert row.team_1.status.label == "Alive"
+
+
 def test_determine_team_status_uses_deterministic_labels():
     assert determine_team_status({"alive": 0, "group_position": 4, "played": 3}).label == "Eliminated"
     assert determine_team_status({"alive": 1, "group_position": 1, "played": 3}).label == "Qualified"
     assert determine_team_status({"alive": 1, "group_position": 3, "played": 2}).label == "At Risk"
     assert determine_team_status({"alive": 1, "group_position": 2, "played": 1}).label == "Alive"
     assert determine_team_status({"alive": 1, "group_position": 4, "played": 1}).label == "Alive"
+    assert determine_team_status({"alive": 1, "group_position": 22, "played": 2}).label == "Alive"
