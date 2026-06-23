@@ -31,6 +31,11 @@ class Settings:
         return self.root_dir / self.raw["storage"]["site_output"]
 
     @property
+    def daily_messages_output(self) -> Path:
+        configured = self.raw["storage"].get("daily_messages_output", "outputs/daily_messages")
+        return self.root_dir / configured
+
+    @property
     def competition_code(self) -> str:
         return str(self.raw["tournament"]["competition_code"])
 
@@ -61,6 +66,10 @@ class Settings:
     @property
     def top_n_summary(self) -> int:
         return int(self.raw["job"].get("top_n_summary", 3))
+
+    @property
+    def daily_message_hour(self) -> int:
+        return int(self.raw["job"].get("daily_message_hour", 7))
 
     @property
     def teams_notifier(self) -> str:

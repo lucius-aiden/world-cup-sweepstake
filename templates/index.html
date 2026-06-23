@@ -3,110 +3,61 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{{ view.tournament_name }}</title>
+    <title>{{ view.tournament_name }} | Insights</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="{{ asset_prefix }}/styles.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ view.asset_prefix }}/styles.css" />
   </head>
   <body>
     <main class="page-shell">
       <section class="hero">
-        <div>
-          <p class="eyebrow">Live Sweepstake Board</p>
+        <div class="hero-copy">
+          <p class="eyebrow">Sweepstake V2</p>
           <h1>{{ view.tournament_name }}</h1>
-          <p class="subcopy">Official Scoreboard UI for ELS 2026 Football World Cup Sweepstake. Track your teams and their performance in the world cup so far.</p>
+          <p class="subcopy">A quick-read tournament dashboard with just the bits casual football watchers actually need.</p>
         </div>
-        <div class="meta-panels">
-          <div class="meta-card">
-            <span class="meta-label">Latest Refresh</span>
-            <strong>{{ view.generated_at }}</strong>
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Participants</span>
-            <strong>{{ view.table_rows|length }}</strong>
-          </div>
-          <div class="meta-card">
-            <span class="meta-label">Latest Result</span>
-            {% if view.latest_match %}
-            <strong>{{ view.latest_match.summary }}</strong>
-            <span>{{ view.latest_match.stage or "Completed match" }} · {{ view.latest_match.played_at }}</span>
-            {% else %}
-            <strong>No completed match yet</strong>
-            <span>Waiting for tournament data</span>
-            {% endif %}
-          </div>
-        </div>
+        <nav class="nav-tabs" aria-label="Primary">
+          <a class="nav-tab is-active" href="{{ view.home_href }}">Insights</a>
+          <a class="nav-tab" href="{{ view.leaderboard_href }}">Leaderboard</a>
+        </nav>
       </section>
 
-      <section class="podium-section">
-        <div class="section-header">
-          <h2>Top 3 Players</h2>
-        </div>
-        <div class="podium">
-        {% for row in view.podium %}
-        <article class="podium-card">
-          <span class="podium-rank">#{{ row.rank }}</span>
-          <h2>{{ row.player }}</h2>
-          <p>{{ row.total_points }} pts</p>
-          <small>{{ row.teams_alive }} team{{ '' if row.teams_alive == 1 else 's' }} alive</small>
+      <section class="summary-grid">
+        <article class="summary-card">
+          <span class="summary-label">Last updated</span>
+          <strong>{{ view.last_updated }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Participants</span>
+          <strong>{{ view.participants_count }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Latest result</span>
+          <strong>{{ view.latest_result }}</strong>
+        </article>
+      </section>
+
+      <section class="insight-grid">
+        {% for section in view.insight_sections %}
+        <article class="panel insight-panel">
+          <div class="section-header">
+            <h2>{{ section.title }}</h2>
+          </div>
+          {% if section.items %}
+          <ul class="insight-list">
+            {% for item in section.items %}
+            <li class="insight-item tone-{{ item.tone }}">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.detail }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          <p class="empty-state">{{ section.empty_message }}</p>
+          {% endif %}
         </article>
         {% endfor %}
-        </div>
-      </section>
-
-      <section class="board">
-        <div class="board-header">
-          <h2>Participant Table</h2>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Team 1</th>
-                <th>Team 1 Points</th>
-                <th>Team 1 Status</th>
-                <th>Team 2</th>
-                <th>Team 2 Points</th>
-                <th>Team 2 Status</th>
-                <th>Total Points</th>
-                <th>Teams Alive</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in view.table_rows %}
-              <tr>
-                <td class="center">{{ row.rank }}</td>
-                <td>{{ row.player }}</td>
-                <td>
-                  <div class="team-cell">
-                    <span class="flag">{{ row.team_1.flag }}</span>
-                    <span>{{ row.team_1.name }}</span>
-                  </div>
-                </td>
-                <td class="center">{{ row.team_1.points }}</td>
-                <td class="center">
-                  <span class="status-pill {{ 'alive' if row.team_1.alive else 'eliminated' }}">{{ 'Still in' if row.team_1.alive else 'Knocked out' }}</span>
-                </td>
-                <td>
-                  <div class="team-cell">
-                    <span class="flag">{{ row.team_2.flag }}</span>
-                    <span>{{ row.team_2.name }}</span>
-                  </div>
-                </td>
-                <td class="center">{{ row.team_2.points }}</td>
-                <td class="center">
-                  <span class="status-pill {{ 'alive' if row.team_2.alive else 'eliminated' }}">{{ 'Still in' if row.team_2.alive else 'Knocked out' }}</span>
-                </td>
-                <td class="center total">{{ row.total_points }}</td>
-                <td class="center">{{ row.teams_alive }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
       </section>
     </main>
   </body>

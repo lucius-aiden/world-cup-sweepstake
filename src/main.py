@@ -15,6 +15,8 @@ from .teams import build_notifier
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="World Cup sweepstake automation")
+    parser.add_argument("--output-dir", help="Override site output directory for build-site")
+    parser.add_argument("--base-path", default="", help="Base path prefix for generated site links")
     parser.add_argument(
         "command",
         choices=["init-db", "sync-participants", "run-once", "serve", "build-site"],
@@ -39,7 +41,11 @@ def main() -> None:
         return
 
     if args.command == "build-site":
-        build_static_site(settings)
+        build_static_site(
+            settings,
+            output_dir=(settings.root_dir / args.output_dir) if args.output_dir else None,
+            site_base_path=args.base_path,
+        )
         return
 
     service = SweepstakeService(

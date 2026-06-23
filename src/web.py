@@ -10,7 +10,7 @@ from starlette.requests import Request
 
 from . import database
 from .configuration import load_settings
-from .presentation import build_dashboard_view
+from .site import build_dashboard_view_from_database
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 TEMPLATES = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -24,19 +24,15 @@ def index(request: Request) -> HTMLResponse:
     settings = load_settings(BASE_DIR)
     connection = database.connect(settings.database_path)
     database.migrate(connection)
-    database.import_participants(connection, settings.participants_csv)
-    leaderboard_inputs = [dict(row) for row in database.fetch_leaderboard_inputs(connection)]
-    latest_match = database.fetch_latest_completed_match(connection)
-    view = build_dashboard_view(
-        settings=settings,
-        leaderboard_inputs=leaderboard_inputs,
-        latest_match_row=dict(latest_match) if latest_match else None,
-    )
-    return TEMPLATES.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "view": view,
-            "asset_prefix": "/static",
-        },
-    )
+    view = build_dashboard_view_from_database(settings, connection, site_base_path="")
+    return TEMPLATES.TemplateResponse("index.html", {"request": request, "view": view})
+
+
+@app.get("/leaderboard", response_class=HTMLResponse)
+@app.get("/leaderboard/", response_class=HTMLResponse)
+def leaderboard(request: Request) -> HTMLResponse:
+    settings = load_settings(BASE_DIR)
+    connection = database.connect(settings.database_path)
+    database.migrate(connection)
+    view = build_dashboard_view_from_database(settings, connection, site_base_path="")
+    return TEMPLATES.TemplateResponse("leaderboard.html", {"request": request, "view": view})

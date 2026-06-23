@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ view.tournament_name }} | Leaderboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ view.asset_prefix }}/styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Sweepstake V2</p>
+          <h1>Leaderboard</h1>
+          <p class="subcopy">Tap a participant to reveal both teams with current group standing, form, match context, and tournament winner odds when available.</p>
+        </div>
+        <nav class="nav-tabs" aria-label="Primary">
+          <a class="nav-tab" href="{{ view.home_href }}">Insights</a>
+          <a class="nav-tab is-active" href="{{ view.leaderboard_href }}">Leaderboard</a>
+        </nav>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <span class="summary-label">Last updated</span>
+          <strong>{{ view.last_updated }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Rows</span>
+          <strong>{{ view.leaderboard_count }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Latest result</span>
+          <strong>{{ view.latest_result }}</strong>
+        </article>
+      </section>
+
+      <section class="panel leaderboard-panel">
+        <div class="section-header">
+          <h2>Participants</h2>
+        </div>
+        <div class="leaderboard-list">
+          {% for row in view.leaderboard_rows %}
+          <details class="participant-row">
+            <summary>
+              <div class="summary-rank">#{{ row.rank }}</div>
+              <div class="summary-player">
+                <strong>{{ row.player }}</strong>
+                <span>{{ row.total_points }} pts · {{ row.teams_alive }} alive</span>
+              </div>
+              <div class="summary-teams">
+                <span>{{ row.team_1.flag }} {{ row.team_1.team_name }}</span>
+                <span>{{ row.team_2.flag }} {{ row.team_2.team_name }}</span>
+              </div>
+            </summary>
+            <div class="team-card-grid">
+              {% for team in [row.team_1, row.team_2] %}
+              <article class="team-card">
+                <header class="team-card-header">
+                  <div>
+                    <span class="team-flag">{{ team.flag }}</span>
+                    <h3>{{ team.team_name }}</h3>
+                  </div>
+                  <span class="status-pill tone-{{ team.status.tone }}">{{ team.status.label }}</span>
+                </header>
+
+                <div class="stat-grid">
+                  <div>
+                    <span class="stat-label">Group position</span>
+                    <strong>{{ team.group_label }}</strong>
+                  </div>
+                  <div>
+                    <span class="stat-label">Group points</span>
+                    <strong>{{ team.group_points }}</strong>
+                  </div>
+                </div>
+
+                <div class="form-block">
+                  <span class="stat-label">Form</span>
+                  <div class="form-pills">
+                    {% if team.form %}
+                      {% for result in team.form %}
+                      <span class="form-pill form-{{ result }}">{{ result }}</span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="empty-inline">No completed matches yet</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="match-blocks">
+                  <div>
+                    <span class="stat-label">Last Match</span>
+                    {% if team.last_match %}
+                    <strong>{{ team.last_match.title }}</strong>
+                    <span>{{ team.last_match.detail }}</span>
+                    {% else %}
+                    <span class="empty-inline">No completed match yet</span>
+                    {% endif %}
+                  </div>
+                  <div>
+                    <span class="stat-label">Next Match</span>
+                    {% if team.next_match %}
+                    <strong>{{ team.next_match.title }}</strong>
+                    <span>{{ team.next_match.detail }}</span>
+                    {% else %}
+                    <span class="empty-inline">No scheduled match</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if team.win_odds %}
+                <div class="odds-block">
+                  <span class="stat-label">Tournament win odds</span>
+                  <strong>{{ team.win_odds }}</strong>
+                </div>
+                {% endif %}
+              </article>
+              {% endfor %}
+            </div>
+          </details>
+          {% endfor %}
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
