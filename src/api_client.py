@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import requests
 
@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 class FootballDataProvider(ABC):
     @abstractmethod
-    def fetch_recent_matches(self) -> list[Match]:
+    def fetch_played_matches(self) -> list[Match]:
         raise NotImplementedError
 
     @abstractmethod
@@ -34,14 +34,12 @@ class FootballDataOrgProvider(FootballDataProvider):
         self.session.headers.update({"X-Auth-Token": settings.football_api_key})
         self.base_url = settings.football_api_base_url
 
-    def fetch_recent_matches(self) -> list[Match]:
+    def fetch_played_matches(self) -> list[Match]:
         utc_now = datetime.now(UTC)
-        date_from = (utc_now - timedelta(days=self.settings.recent_matches_window_days)).date()
         date_to = utc_now.date()
         payload = self._get(
             f"/competitions/{self.settings.competition_code}/matches",
             params={
-                "dateFrom": date_from.isoformat(),
                 "dateTo": date_to.isoformat(),
                 "season": self.settings.season,
             },

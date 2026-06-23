@@ -40,7 +40,7 @@ class SweepstakeService:
         database.migrate(connection)
         database.import_participants(connection, self.settings.participants_csv)
 
-        matches = self.provider.fetch_recent_matches()
+        matches = self.provider.fetch_played_matches()
         completed_matches = [match for match in matches if self.provider.is_completed_status(match.status)]
         changed_matches = database.upsert_matches(connection, completed_matches)
 

@@ -5,7 +5,7 @@ from src.site import build_static_site
 
 
 class StubProvider:
-    def fetch_recent_matches(self):
+    def fetch_played_matches(self):
         from src.models import Match
 
         return [

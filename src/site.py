@@ -20,7 +20,7 @@ def build_static_site(settings: Settings) -> Path:
     database.import_participants(connection, settings.participants_csv)
 
     provider = build_provider(settings)
-    matches = provider.fetch_recent_matches()
+    matches = provider.fetch_played_matches()
     completed_matches = [match for match in matches if provider.is_completed_status(match.status)]
     database.upsert_matches(connection, completed_matches)
     database.replace_team_standings(connection, build_effective_standings(completed_matches, provider.fetch_standings()))
