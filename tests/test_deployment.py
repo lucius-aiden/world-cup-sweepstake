@@ -17,4 +17,4 @@ def test_pages_workflow_builds_prod_and_dev_without_overwriting():
     assert "dev" in push_branches
     assert '"${{ github.workspace }}/_site"' in run_commands
     assert '"${{ github.workspace }}/_site/dev"' in run_commands
-    assert "--base-path /dev" in run_commands
+    assert 'site_base_path="/dev"' in run_commands
