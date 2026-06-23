@@ -203,7 +203,7 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
         return StatusView(label="Qualified", tone="qualified")
     if group_position is not None and played >= 3 and group_position <= 2:
         return StatusView(label="Qualified", tone="qualified")
-    if group_position is not None and group_position > 2:
+    if group_position is not None and group_position > 2 and played >= 2:
         return StatusView(label="At Risk", tone="risk")
     return StatusView(label="Alive", tone="alive")
 
@@ -278,7 +278,6 @@ def _build_insight_sections(
     teams_in_trouble = [
         row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}
     ][:5]
-    at_risk_teams = [row for row in standings if determine_team_status(row).label == "At Risk"][:5]
     biggest_winners = sorted(
         [match for match in completed_today if _goal_margin(match) > 0],
         key=lambda match: (-_goal_margin(match), str(match["match_date"])),
@@ -290,7 +289,7 @@ def _build_insight_sections(
             items=[
                 InsightItemView(
                     title=_winning_team(match),
-                    detail=f"{_match_scoreline(match)} · +{_goal_margin(match)} goal swing",
+                    detail=_match_scoreline(match),
                     tone="qualified",
                 )
                 for match in biggest_winners
@@ -302,7 +301,7 @@ def _build_insight_sections(
             items=[
                 InsightItemView(
                     title=str(row["team_name"]),
-                    detail=f'{_group_label(row)} · {determine_team_status(row).label}',
+                    detail=f'{_group_label(row)} · {int(row["points"])} pts · {determine_team_status(row).label}',
                     tone=determine_team_status(row).tone,
                 )
                 for row in teams_in_trouble
@@ -342,18 +341,6 @@ def _build_insight_sections(
                 for row in best_performing
             ],
             empty_message="No standings available yet.",
-        ),
-        InsightSectionView(
-            title="At-risk teams",
-            items=[
-                InsightItemView(
-                    title=str(row["team_name"]),
-                    detail=f'{_group_label(row)} · {int(row["points"])} pts',
-                    tone="risk",
-                )
-                for row in at_risk_teams
-            ],
-            empty_message="No at-risk teams right now.",
         ),
     ]
 

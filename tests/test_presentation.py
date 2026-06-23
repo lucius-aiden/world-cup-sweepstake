@@ -103,3 +103,4 @@ def test_determine_team_status_uses_deterministic_labels():
     assert determine_team_status({"alive": 1, "group_position": 1, "played": 3}).label == "Qualified"
     assert determine_team_status({"alive": 1, "group_position": 3, "played": 2}).label == "At Risk"
     assert determine_team_status({"alive": 1, "group_position": 2, "played": 1}).label == "Alive"
+    assert determine_team_status({"alive": 1, "group_position": 4, "played": 1}).label == "Alive"

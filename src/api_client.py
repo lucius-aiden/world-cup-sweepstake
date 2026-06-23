@@ -54,7 +54,7 @@ class FootballDataOrgProvider(FootballDataProvider):
         )
         standings: dict[str, TeamStanding] = {}
         for table_group in payload.get("standings", []):
-            for entry in table_group.get("table", []):
+            for index, entry in enumerate(table_group.get("table", []), start=1):
                 team = entry.get("team", {})
                 team_name = team.get("name") or team.get("shortName") or "Unknown"
                 team_code = resolve_team_code(team_name, team.get("tla"))
@@ -62,7 +62,7 @@ class FootballDataOrgProvider(FootballDataProvider):
                     team_code=team_code,
                     team_name=team_name,
                     group_name=table_group.get("group"),
-                    group_position=entry.get("position"),
+                    group_position=index,
                     played=int(entry.get("playedGames", 0)),
                     won=int(entry.get("won", 0)),
                     drawn=int(entry.get("draw", 0)),
