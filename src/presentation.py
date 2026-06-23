@@ -135,7 +135,7 @@ def build_dashboard_view(
 
     return DashboardView(
         tournament_name=settings.raw["tournament"]["name"],
-        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),
+        generated_at=datetime.now(UTC).strftime("%Y-%m-%d %H:%M GMT"),
         leaderboard=leaderboard,
         table_rows=table_rows,
         podium=leaderboard[:3],
@@ -156,6 +156,6 @@ def _team_cell(team: dict) -> TeamCell:
 
 def _format_match_time(raw: str) -> str:
     try:
-        return datetime.fromisoformat(raw).strftime("%Y-%m-%d %H:%M UTC")
+        return datetime.fromisoformat(raw).strftime("%Y-%m-%d %H:%M GMT")
     except ValueError:
         return raw
