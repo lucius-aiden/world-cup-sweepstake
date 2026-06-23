@@ -37,9 +37,11 @@ class FootballDataOrgProvider(FootballDataProvider):
     def fetch_played_matches(self) -> list[Match]:
         utc_now = datetime.now(UTC)
         date_to = utc_now.date()
+        date_from = datetime(self.settings.season, 1, 1, tzinfo=UTC).date()
         payload = self._get(
             f"/competitions/{self.settings.competition_code}/matches",
             params={
+                "dateFrom": date_from.isoformat(),
                 "dateTo": date_to.isoformat(),
                 "season": self.settings.season,
             },
