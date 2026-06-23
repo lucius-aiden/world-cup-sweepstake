@@ -103,6 +103,7 @@ h3 {
 .summary-player span,
 .match-blocks span,
 .empty-state,
+.section-copy,
 .empty-inline {
   color: var(--muted);
 }
@@ -186,6 +187,10 @@ h3 {
   border-top: 1px solid rgba(216, 171, 17, 0.2);
 }
 
+.section-copy {
+  margin: 6px 0 0;
+}
+
 .insight-item:first-child {
   border-top: 0;
   padding-top: 0;
@@ -201,12 +206,25 @@ h3 {
   gap: 14px;
 }
 
+.summary-headings,
 .participant-row summary {
   display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) minmax(220px, 340px);
-  gap: 14px;
+  grid-template-columns: 82px minmax(180px, 1.4fr) minmax(140px, 1fr) minmax(140px, 1fr) 88px 88px;
+  gap: 0;
   align-items: center;
-  padding: 18px 20px;
+}
+
+.summary-headings {
+  padding: 0 20px 12px;
+  color: var(--muted);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.participant-row summary {
+  padding: 0;
   cursor: pointer;
   list-style: none;
 }
@@ -219,12 +237,22 @@ h3 {
   border-bottom: 1px solid var(--line-soft);
 }
 
+.summary-cell {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-left: 1px solid rgba(216, 171, 17, 0.16);
+}
+
+.summary-cell:first-child {
+  border-left: 0;
+}
+
 .summary-rank {
   display: grid;
   place-items: center;
-  width: 62px;
-  height: 62px;
-  border: 1px solid var(--line);
+  min-height: 72px;
   color: var(--accent);
   font-family: "Barlow Condensed", sans-serif;
   font-size: 1.4rem;
@@ -236,13 +264,41 @@ h3 {
   display: block;
 }
 
-.summary-teams {
-  text-align: right;
+.summary-team,
+.summary-points,
+.summary-alive {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.1rem;
+}
+
+.summary-points,
+.summary-alive {
+  justify-content: center;
+}
+
+.visualy-hidden,
+.visually-hidden {
+  display: none;
+}
+
+.expand-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 220ms ease;
+}
+
+.participant-row[open] .expand-shell {
+  grid-template-rows: 1fr;
+}
+
+.expand-shell > * {
+  overflow: hidden;
 }
 
 .team-card-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   padding: 20px;
+  animation: reveal 220ms ease;
 }
 
 .team-card {
@@ -341,15 +397,41 @@ h3 {
   color: #d9b0aa;
 }
 
+.insight-list-results {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.insight-list-results .insight-item:nth-child(2) {
+  border-top: 0;
+  padding-top: 0;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 980px) {
   .hero,
   .summary-grid,
   .insight-grid,
-  .participant-row summary,
   .team-card-grid,
   .stat-grid,
   .match-blocks {
     grid-template-columns: 1fr;
+  }
+
+  .summary-headings,
+  .participant-row summary {
+    grid-template-columns: 1fr 1fr;
   }
 
   .page-shell {
@@ -357,13 +439,35 @@ h3 {
     padding-top: 20px;
   }
 
-  .nav-tabs,
-  .summary-teams {
+  .nav-tabs {
     justify-self: start;
-    text-align: left;
   }
 
   h1 {
     font-size: clamp(2.8rem, 12vw, 4.2rem);
+  }
+
+  .summary-headings {
+    display: none;
+  }
+
+  .summary-cell {
+    min-height: 56px;
+    padding: 12px 14px;
+  }
+
+  .summary-rank,
+  .summary-points,
+  .summary-alive {
+    justify-content: flex-start;
+  }
+
+  .insight-list-results {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-list-results .insight-item:nth-child(2) {
+    border-top: 1px solid rgba(216, 171, 17, 0.2);
+    padding-top: 14px;
   }
 }

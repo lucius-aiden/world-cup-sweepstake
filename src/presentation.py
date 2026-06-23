@@ -107,6 +107,7 @@ class InsightItemView:
 @dataclass(frozen=True)
 class InsightSectionView:
     title: str
+    description: str
     items: list[InsightItemView]
     empty_message: str
 
@@ -219,7 +220,7 @@ def build_daily_message_context(view: DashboardView) -> DailyMessageContext:
         current_leader=current_leader,
         best_performing_teams=[item.title for item in section_map.get("Best Performing Teams", _empty_section("")).items[:3]],
         teams_in_trouble=[item.title for item in section_map.get("Teams In Trouble", _empty_section("")).items[:3]],
-        biggest_team_changes=[item.title for item in section_map.get("Biggest Winners Today", _empty_section("")).items[:3]],
+        biggest_team_changes=[item.title for item in section_map.get("Top Matches", _empty_section("")).items[:3]],
         todays_key_fixtures=[item.title for item in section_map.get("Today's Key Fixtures", _empty_section("")).items[:3]],
         leaderboard_url=view.leaderboard_href,
     )
@@ -240,13 +241,19 @@ def _build_team_card(
     last_match = _last_match(team_matches, display_zone)
     next_match = _next_match(team_matches, display_zone)
     odds = odds_by_team.get(team_code)
+    status_context = {}
+    if standing:
+        status_context |= standing
+    if context:
+        status_context |= context
+    status_context["alive"] = team_input.get("alive", 1)
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
         team_name=str(team_input["team_name"]),
         group_label=_group_label(context or standing),
         group_points=int(standing["points"]) if standing else int(team_input.get("points", 0)),
         form=_team_form(team_matches, team_code),
-        status=determine_team_status((standing | context | {"alive": team_input.get("alive", 1)}) if standing or context else {"alive": team_input.get("alive", 1)}),
+        status=determine_team_status(status_context),
         last_match=last_match,
         next_match=next_match,
         win_odds=_format_odds(odds),
@@ -291,9 +298,10 @@ def _build_insight_sections(
     return [
         InsightSectionView(
             title="Top Matches",
+            description="Top matches are today's completed results with the clearest scoreboard impact or biggest result swing.",
             items=[
                 InsightItemView(
-                    title=_winning_team(match),
+                    title=f'{_flag_for_match_team(match)} {_winning_team(match)}',
                     detail=_match_scoreline(match),
                     tone="qualified",
                 )
@@ -303,9 +311,10 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Today's Key Fixtures",
+            description="Key fixtures are today's remaining scheduled matches, ordered by kickoff time.",
             items=[
                 InsightItemView(
-                    title=f'{match["home_team"]} vs {match["away_team"]}',
+                    title=f'{_flag_for_code(match.get("home_team_code"))} {match["home_team"]} vs {_flag_for_code(match.get("away_team_code"))} {match["away_team"]}',
                     detail=_match_time(match, display_zone),
                 )
                 for match in sorted(upcoming_today, key=lambda match: str(match["match_date"]))[:5]
@@ -314,9 +323,10 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Best Performing Teams",
+            description="Best performing teams are ranked by group points, then goal difference, then goals scored.",
             items=[
                 InsightItemView(
-                    title=str(row["team_name"]),
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
                     detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
                     tone="qualified",
                 )
@@ -326,9 +336,10 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Teams In Trouble",
+            description="Teams in trouble are sides sitting outside the top two in their group after at least two completed group matches.",
             items=[
                 InsightItemView(
-                    title=str(row["team_name"]),
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
                     detail=f'{_group_label(row)} · {int(row["points"])} pts',
                     tone=determine_team_status(row).tone,
                 )
@@ -338,12 +349,13 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Latest Results",
+            description="Latest results show the eight most recent completed matches.",
             items=[
                 InsightItemView(
                     title=_match_scoreline(match),
                     detail=_match_meta(match, display_zone),
                 )
-                for match in latest_results
+                for match in latest_results[:8]
             ],
             empty_message="Waiting for the first result.",
         ),
@@ -373,7 +385,6 @@ def _team_form(matches: list[dict[str, Any]], team_code: str) -> list[str]:
     completed = sorted(
         [match for match in matches if _is_completed(match)],
         key=lambda match: str(match["match_date"]),
-        reverse=True,
     )[:5]
     return [_result_for_team(match, team_code) for match in completed]
 
@@ -492,6 +503,20 @@ def _format_group_name(raw: str) -> str:
     return cleaned
 
 
+def _flag_for_code(code: Any) -> str:
+    if not code:
+        return "🏳️"
+    return FLAG_OVERRIDES.get(str(code), "🏳️")
+
+
+def _flag_for_match_team(match: dict[str, Any]) -> str:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    if home_score >= away_score:
+        return _flag_for_code(match.get("home_team_code"))
+    return _flag_for_code(match.get("away_team_code"))
+
+
 def _normalized_group_position(standing: dict[str, Any] | None) -> int | None:
     if not standing:
         return None
@@ -574,4 +599,4 @@ def _normalize_base_path(base_path: str) -> str:
 
 
 def _empty_section(title: str) -> InsightSectionView:
-    return InsightSectionView(title=title, items=[], empty_message="")
+    return InsightSectionView(title=title, description="", items=[], empty_message="")

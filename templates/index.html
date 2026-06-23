@@ -43,9 +43,10 @@
         <article class="panel insight-panel">
           <div class="section-header">
             <h2>{{ section.title }}</h2>
+            <p class="section-copy">{{ section.description }}</p>
           </div>
           {% if section.items %}
-          <ul class="insight-list">
+          <ul class="insight-list{% if section.title == 'Latest Results' %} insight-list-results{% endif %}">
             {% for item in section.items %}
             <li class="insight-item tone-{{ item.tone }}">
               <strong>{{ item.title }}</strong>

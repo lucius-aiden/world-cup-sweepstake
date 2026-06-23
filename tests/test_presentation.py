@@ -173,6 +173,47 @@ def test_dashboard_view_orders_homepage_sections_and_dev_links():
     assert view.home_href == "/dev/"
 
 
+def test_form_runs_left_to_right_in_match_order():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Brazil",
+                "home_team_code": "BRA",
+                "away_team": "Japan",
+                "away_team_code": "JPN",
+                "home_score": 2,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 20, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "group_name": "GROUP_A",
+            },
+            {
+                "match_id": "2",
+                "home_team": "Norway",
+                "home_team_code": "NOR",
+                "away_team": "Brazil",
+                "away_team_code": "BRA",
+                "home_score": 1,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 22, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "group_name": "GROUP_A",
+            },
+        ],
+    )
+
+    assert view.leaderboard_rows[0].team_1.form == ["W", "D"]
+
+
 def test_determine_team_status_uses_deterministic_labels():
     assert determine_team_status({"alive": 0, "group_position": 4, "played": 3}).label == "Eliminated"
     assert determine_team_status({"alive": 1, "group_position": 1, "played": 3}).label == "Qualified"
