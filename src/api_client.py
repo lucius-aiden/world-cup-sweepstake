@@ -107,6 +107,7 @@ class FootballDataOrgProvider(FootballDataProvider):
             status=item.get("status", "UNKNOWN"),
             match_date=datetime.fromisoformat(item["utcDate"].replace("Z", "+00:00")),
             stage=item.get("stage"),
+            group=item.get("group"),
             winner=winner,
         )
 

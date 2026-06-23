@@ -24,6 +24,7 @@ class Match:
     status: str
     match_date: datetime
     stage: Optional[str] = None
+    group: Optional[str] = None
     winner: Optional[str] = None
 
 

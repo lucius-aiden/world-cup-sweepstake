@@ -62,6 +62,7 @@ def test_dashboard_view_builds_expandable_team_card_data():
             "status": "FINISHED",
             "match_date": datetime(2026, 6, 22, 18, 0, tzinfo=UTC).isoformat(),
             "stage": "GROUP_STAGE",
+            "group_name": "GROUP_A",
             "winner": "HOME_TEAM",
         },
         {
@@ -75,6 +76,7 @@ def test_dashboard_view_builds_expandable_team_card_data():
             "status": "TIMED",
             "match_date": datetime(2026, 6, 25, 18, 0, tzinfo=UTC).isoformat(),
             "stage": "GROUP_STAGE",
+            "group_name": "GROUP_A",
             "winner": None,
         },
     ]
@@ -91,11 +93,13 @@ def test_dashboard_view_builds_expandable_team_card_data():
     row = view.leaderboard_rows[0]
     assert row.player == "Alice"
     assert row.team_1.team_name == "Brazil"
+    assert row.team_1.group_label == "Group A · 1st"
     assert row.team_1.status.label == "Qualified"
     assert row.team_1.form == ["W"]
     assert row.team_1.last_match is not None
     assert row.team_1.next_match is not None
     assert row.team_1.win_odds == "5.50"
+    assert view.home_href == "/"
 
 
 def test_dashboard_view_hides_out_of_range_group_positions():
@@ -145,6 +149,28 @@ def test_dashboard_view_hides_out_of_range_group_positions():
     row = view.leaderboard_rows[0]
     assert row.team_1.group_label == "Group position TBD"
     assert row.team_1.status.label == "Alive"
+
+
+def test_dashboard_view_orders_homepage_sections_and_dev_links():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Germany", "team_code": "GER", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[],
+        site_base_path="/dev",
+    )
+
+    assert [section.title for section in view.insight_sections] == [
+        "Top Matches",
+        "Today's Key Fixtures",
+        "Best Performing Teams",
+        "Teams In Trouble",
+        "Latest Results",
+    ]
+    assert view.home_href == "/dev/"
 
 
 def test_determine_team_status_uses_deterministic_labels():

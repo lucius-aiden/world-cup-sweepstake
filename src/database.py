@@ -40,6 +40,7 @@ SCHEMA_STATEMENTS = [
         posted_to_teams INTEGER NOT NULL DEFAULT 0,
         processed_at TEXT,
         stage TEXT,
+        group_name TEXT,
         winner TEXT
     )
     """,
@@ -108,6 +109,8 @@ def migrate(connection: sqlite3.Connection) -> None:
             connection.execute("ALTER TABLE matches ADD COLUMN home_team_code TEXT")
         if "away_team_code" not in match_columns:
             connection.execute("ALTER TABLE matches ADD COLUMN away_team_code TEXT")
+        if "group_name" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN group_name TEXT")
         standing_columns = {
             row["name"]
             for row in connection.execute("PRAGMA table_info(team_standings)").fetchall()
@@ -161,8 +164,8 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                 """
                 INSERT INTO matches(
                     match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score,
-                    status, match_date, stage, winner
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    status, match_date, stage, group_name, winner
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(match_id) DO UPDATE SET
                     home_team=excluded.home_team,
                     home_team_code=excluded.home_team_code,
@@ -173,6 +176,7 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                     status=excluded.status,
                     match_date=excluded.match_date,
                     stage=excluded.stage,
+                    group_name=excluded.group_name,
                     winner=excluded.winner
                 """,
                 (
@@ -186,6 +190,7 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                     match.status,
                     match.match_date.isoformat(),
                     match.stage,
+                    match.group,
                     match.winner,
                 ),
             )
@@ -301,7 +306,7 @@ def store_rank_snapshot(connection: sqlite3.Connection, leaderboard: list[Leader
 def fetch_latest_completed_match(connection: sqlite3.Connection) -> sqlite3.Row | None:
     return connection.execute(
         """
-        SELECT match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score, match_date, stage, winner
+        SELECT match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score, match_date, stage, group_name, winner
         FROM matches
         WHERE status IN ('FINISHED', 'FT', 'AET', 'PEN')
         ORDER BY match_date DESC
@@ -324,6 +329,7 @@ def fetch_all_matches(connection: sqlite3.Connection) -> list[sqlite3.Row]:
             status,
             match_date,
             stage,
+            group_name,
             winner
         FROM matches
         ORDER BY match_date ASC, match_id ASC
