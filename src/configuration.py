@@ -36,6 +36,11 @@ class Settings:
         return self.root_dir / configured
 
     @property
+    def odds_cache_path(self) -> Path:
+        configured = self.raw["storage"].get("odds_cache_path", "data/odds_cache.json")
+        return self.root_dir / configured
+
+    @property
     def competition_code(self) -> str:
         return str(self.raw["tournament"]["competition_code"])
 
