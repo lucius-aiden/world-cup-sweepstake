@@ -19,9 +19,14 @@ def test_affected_players_handles_country_aliases():
         LeaderboardRow("Tom", "England", 5, "Alive", "Japan", 5, "Alive", 10, 2, 2),
     ]
 
-    affected = _affected_players(match, previous_ranks={"Sarah": 2, "Tom": 1}, leaderboard=leaderboard)
+    affected = _affected_players(
+        match,
+        previous_ranks={"Sarah": 2, "Tom": 1},
+        previous_points={"Sarah": 8, "Tom": 10},
+        leaderboard=leaderboard,
+    )
 
     assert [record.player for record in affected] == ["Sarah"]
     assert affected[0].previous_rank == 2
     assert affected[0].new_rank == 1
-
+    assert affected[0].impacted_teams == ("Brazil", "USA")

@@ -59,5 +59,6 @@ class MovementRecord:
     player: str
     previous_rank: Optional[int]
     new_rank: int
-    delta_points: int
-
+    previous_points: Optional[int]
+    current_points: int
+    impacted_teams: tuple[str, ...] = ()

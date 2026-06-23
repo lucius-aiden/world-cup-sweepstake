@@ -4,22 +4,41 @@ from collections import defaultdict
 from pathlib import Path
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from .models import LeaderboardRow, MovementRecord
 
-ALIVE_FILL = PatternFill(fill_type="solid", fgColor="C6EFCE")
-ELIMINATED_FILL = PatternFill(fill_type="solid", fgColor="FFC7CE")
+BLACK_FILL = PatternFill(fill_type="solid", fgColor="0A0A0A")
+HEADER_FILL = PatternFill(fill_type="solid", fgColor="050505")
+ALIVE_FILL = PatternFill(fill_type="solid", fgColor="0A0A0A")
+ELIMINATED_FILL = PatternFill(fill_type="solid", fgColor="161616")
+GOLD = "E0B400"
+WHITE = "F8F8F8"
+GRAY = "B7B7B7"
+BORDER = Border(
+    left=Side(style="thin", color=GOLD),
+    right=Side(style="thin", color=GOLD),
+    top=Side(style="thin", color=GOLD),
+    bottom=Side(style="thin", color=GOLD),
+)
 
 
-def build_leaderboard(rows: list[dict], previous_ranks: dict[str, int]) -> tuple[list[LeaderboardRow], list[MovementRecord]]:
+def build_leaderboard(
+    rows: list[dict],
+    previous_ranks: dict[str, int],
+    previous_points: dict[str, int] | None = None,
+) -> tuple[list[LeaderboardRow], list[MovementRecord]]:
+    previous_points = previous_points or {}
     grouped: dict[str, list[dict]] = defaultdict(list)
     for row in rows:
         grouped[row["player"]].append(dict(row))
 
     leaderboard: list[LeaderboardRow] = []
     for player, teams in grouped.items():
-        teams = sorted(teams, key=lambda item: item["team_name"])
+        if len(teams) != 2:
+            raise ValueError(f"Expected exactly 2 teams for {player}, found {len(teams)}")
+        teams = sorted(teams, key=lambda item: int(item.get("team_slot", 0)))
+        
         first, second = teams[0], teams[1]
         leaderboard.append(
             LeaderboardRow(
@@ -48,7 +67,8 @@ def build_leaderboard(rows: list[dict], previous_ranks: dict[str, int]) -> tuple
                 player=ranked.player,
                 previous_rank=previous_rank,
                 new_rank=index,
-                delta_points=ranked.total_points,
+                previous_points=previous_points.get(ranked.player),
+                current_points=ranked.total_points,
             )
         )
     return ranked_rows, movements
@@ -75,7 +95,10 @@ def write_workbook(leaderboard: list[LeaderboardRow], output_path: Path) -> None
     sheet.append(headers)
 
     for cell in sheet[1]:
-        cell.font = Font(bold=True)
+        cell.font = Font(bold=True, color=WHITE, size=14)
+        cell.fill = HEADER_FILL
+        cell.border = BORDER
+        cell.alignment = Alignment(horizontal="center", vertical="center")
 
     for row in leaderboard:
         sheet.append(
@@ -94,10 +117,23 @@ def write_workbook(leaderboard: list[LeaderboardRow], output_path: Path) -> None
         )
 
     for data_row in sheet.iter_rows(min_row=2, max_row=sheet.max_row):
+        for cell in data_row:
+            cell.fill = BLACK_FILL
+            cell.font = Font(color=WHITE, size=12)
+            cell.border = BORDER
+            if cell.column in {1, 4, 7, 9, 10}:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
         _apply_status_fill(data_row[4], data_row[4].value)
         _apply_status_fill(data_row[7], data_row[7].value)
+        data_row[4].font = Font(color=WHITE, bold=True)
+        data_row[7].font = Font(color=WHITE, bold=True)
+
+    for column_letter in ("C", "F"):
+        for cell in sheet[column_letter][1:]:
+            cell.alignment = Alignment(horizontal="left", vertical="center")
 
     sheet.freeze_panes = "A2"
+    sheet.sheet_view.showGridLines = False
     _autosize(sheet)
     workbook.save(output_path)
 
@@ -108,10 +144,10 @@ def _status_label(alive: bool) -> str:
 
 def _apply_status_fill(cell, value: str) -> None:
     cell.fill = ALIVE_FILL if value == "Alive" else ELIMINATED_FILL
+    cell.font = Font(color=WHITE if value == "Alive" else GRAY, bold=True)
 
 
 def _autosize(sheet) -> None:
     for column in sheet.columns:
         width = max(len("" if cell.value is None else str(cell.value)) for cell in column) + 2
         sheet.column_dimensions[column[0].column_letter].width = width
-

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 
+import uvicorn
+
 from . import database
 from .api_client import build_provider
 from .configuration import load_settings
@@ -14,7 +16,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="World Cup sweepstake automation")
     parser.add_argument(
         "command",
-        choices=["init-db", "sync-participants", "run-once"],
+        choices=["init-db", "sync-participants", "run-once", "serve"],
         help="Operation to execute",
     )
     args = parser.parse_args()
@@ -31,6 +33,10 @@ def main() -> None:
         database.import_participants(connection, settings.participants_csv)
         return
 
+    if args.command == "serve":
+        uvicorn.run("src.web:app", host="0.0.0.0", port=8000, reload=False)
+        return
+
     service = SweepstakeService(
         settings=settings,
         provider=build_provider(settings),
@@ -42,4 +48,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

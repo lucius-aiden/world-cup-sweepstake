@@ -19,9 +19,10 @@ SCHEMA_STATEMENTS = [
     """
     CREATE TABLE IF NOT EXISTS participant_teams (
         participant_id INTEGER NOT NULL,
+        team_slot INTEGER NOT NULL,
         team_code TEXT NOT NULL,
         team_name TEXT NOT NULL,
-        UNIQUE(participant_id, team_code),
+        UNIQUE(participant_id, team_slot),
         FOREIGN KEY(participant_id) REFERENCES participants(id) ON DELETE CASCADE
     )
     """,
@@ -75,6 +76,25 @@ def migrate(connection: sqlite3.Connection) -> None:
     with connection:
         for statement in SCHEMA_STATEMENTS:
             connection.execute(statement)
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(participant_teams)").fetchall()
+        }
+        if "team_slot" not in columns:
+            connection.execute("ALTER TABLE participant_teams ADD COLUMN team_slot INTEGER")
+            connection.execute(
+                """
+                UPDATE participant_teams
+                SET team_slot = CASE
+                    WHEN rowid IN (
+                        SELECT MIN(rowid)
+                        FROM participant_teams pt2
+                        WHERE pt2.participant_id = participant_teams.participant_id
+                    ) THEN 1
+                    ELSE 2
+                END
+                """
+            )
 
 
 def import_participants(connection: sqlite3.Connection, participants_csv: Path) -> None:
@@ -88,15 +108,15 @@ def import_participants(connection: sqlite3.Connection, participants_csv: Path) 
                 "INSERT INTO participants(name) VALUES (?)",
                 (name,),
             ).lastrowid
-            for column in ("Team1", "Team2"):
+            for slot, column in enumerate(("Team1", "Team2"), start=1):
                 team_name = row[column].strip()
                 team_code = normalize_team_code(team_name)
                 connection.execute(
                     """
-                    INSERT INTO participant_teams(participant_id, team_code, team_name)
-                    VALUES (?, ?, ?)
+                    INSERT INTO participant_teams(participant_id, team_slot, team_code, team_name)
+                    VALUES (?, ?, ?, ?)
                     """,
-                    (participant_id, team_code, team_name),
+                    (participant_id, slot, team_code, team_name),
                 )
 
 
@@ -179,6 +199,7 @@ def fetch_leaderboard_inputs(connection: sqlite3.Connection) -> list[sqlite3.Row
         """
         SELECT
             p.name AS player,
+            pt.team_slot,
             pt.team_name,
             pt.team_code,
             COALESCE(ts.points, 0) AS points,
@@ -186,7 +207,7 @@ def fetch_leaderboard_inputs(connection: sqlite3.Connection) -> list[sqlite3.Row
         FROM participants p
         JOIN participant_teams pt ON pt.participant_id = p.id
         LEFT JOIN team_standings ts ON ts.team_code = pt.team_code
-        ORDER BY p.name ASC, pt.team_name ASC
+        ORDER BY p.name ASC, pt.team_slot ASC
         """
     ).fetchall()
 
@@ -202,13 +223,41 @@ def fetch_rank_snapshot(connection: sqlite3.Connection) -> dict[str, int]:
     return {row["key"].split(":", 1)[1]: int(row["value"]) for row in rows}
 
 
+def fetch_points_snapshot(connection: sqlite3.Connection) -> dict[str, int]:
+    rows = connection.execute(
+        """
+        SELECT key, value
+        FROM job_state
+        WHERE key LIKE 'points:%'
+        """
+    ).fetchall()
+    return {row["key"].split(":", 1)[1]: int(row["value"]) for row in rows}
+
+
 def store_rank_snapshot(connection: sqlite3.Connection, leaderboard: list[LeaderboardRow]) -> None:
     with connection:
         connection.execute("DELETE FROM job_state WHERE key LIKE 'rank:%'")
+        connection.execute("DELETE FROM job_state WHERE key LIKE 'points:%'")
         connection.executemany(
             "INSERT INTO job_state(key, value) VALUES (?, ?)",
             [(f"rank:{row.player}", str(row.rank)) for row in leaderboard],
         )
+        connection.executemany(
+            "INSERT INTO job_state(key, value) VALUES (?, ?)",
+            [(f"points:{row.player}", str(row.total_points)) for row in leaderboard],
+        )
+
+
+def fetch_latest_completed_match(connection: sqlite3.Connection) -> sqlite3.Row | None:
+    return connection.execute(
+        """
+        SELECT match_id, home_team, away_team, home_score, away_score, match_date, stage, winner
+        FROM matches
+        WHERE status IN ('FINISHED', 'FT', 'AET', 'PEN')
+        ORDER BY match_date DESC
+        LIMIT 1
+        """
+    ).fetchone()
 
 
 def mark_posted(connection: sqlite3.Connection, match_id: str) -> None:

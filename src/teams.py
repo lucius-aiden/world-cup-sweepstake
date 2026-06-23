@@ -81,7 +81,13 @@ def render_message(
                 movement = f"down {record.new_rank - record.previous_rank} to #{record.new_rank}"
             else:
                 movement = f"stayed at #{record.new_rank}"
-            affected_lines.append(f"- {record.player}: {movement}")
+            points_change = (
+                ""
+                if record.previous_points is None
+                else f", {record.previous_points}->{record.current_points} pts"
+            )
+            impacted_suffix = f" via {', '.join(record.impacted_teams)}" if record.impacted_teams else ""
+            affected_lines.append(f"- {record.player}{impacted_suffix}: {movement}{points_change}")
     else:
         affected_lines.append("- No participant teams were involved in this match.")
 
@@ -90,4 +96,3 @@ def render_message(
         podium_lines.append(f"- #{row.rank} {row.player}: {row.total_points} pts")
 
     return "\n".join([header, "", score_line, "", *affected_lines, "", *podium_lines])
-

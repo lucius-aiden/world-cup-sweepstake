@@ -1,12 +1,13 @@
 # World Cup Sweepstake
 
-Lightweight Python automation for a FIFA World Cup 2026 office sweepstake.
+Python sweepstake tracker for a FIFA World Cup 2026 office pool, now with a live web UI and scoreboard-style workbook output.
 
 ## What it does
 
 - Polls a football API on a 15-minute schedule.
 - Tracks completed matches in SQLite.
 - Rebuilds the leaderboard workbook from database state on every run.
+- Serves a dark scoreboard-style dashboard based on the participant table layout.
 - Replaces a single existing `leaderboard.xlsx` in SharePoint.
 - Posts a match summary to Teams through a configurable notifier.
 
@@ -39,10 +40,14 @@ src/
   leaderboard.py
   main.py
   models.py
+  presentation.py
   scheduler.py
   sharepoint.py
   team_codes.py
   teams.py
+  web.py
+static/
+templates/
 tests/
 ```
 
@@ -55,6 +60,7 @@ flowchart TD
     C --> D[Persist matches and standings in SQLite]
     D --> E[Recalculate leaderboard]
     E --> F[Generate leaderboard.xlsx]
+    E --> J[Render web dashboard]
     F --> G[Upload same file in SharePoint]
     E --> H[Build Teams summary]
     H --> I[Post channel update]
@@ -75,7 +81,7 @@ For normal live Teams channel posts, Microsoft Graph does not support app-only p
 pip install -r requirements.txt
 ```
 
-3. Copy your real participant list into `config/participants.csv`.
+3. Update `config/participants.csv` if the participant/team roster changes.
 4. Set these environment variables:
 
 ```bash
@@ -114,6 +120,14 @@ Run the job once:
 ```bash
 python -m src.main run-once
 ```
+
+Serve the local UI:
+
+```bash
+python -m src.main serve
+```
+
+Then open <http://localhost:8000>.
 
 ## Deployment options
 
@@ -161,5 +175,6 @@ pytest
 
 - Runs are idempotent at the match level through the `matches` table and `posted_to_teams` flag.
 - The workbook is always regenerated from SQLite rather than edited in place.
+- The dashboard and workbook intentionally follow the same dark/gold scoreboard visual language.
 - Participant team names can be entered as common country names like `USA` and are normalized to stable codes where possible.
 - `alive` currently relies on provider qualification signals when available. If your chosen upstream exposes richer knockout progression flags, we can tighten that logic further.

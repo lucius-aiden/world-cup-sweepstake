@@ -47,7 +47,12 @@ class SweepstakeService:
         database.replace_team_standings(connection, standings)
 
         previous_ranks = database.fetch_rank_snapshot(connection)
-        leaderboard, _ = build_leaderboard(database.fetch_leaderboard_inputs(connection), previous_ranks)
+        previous_points = database.fetch_points_snapshot(connection)
+        leaderboard, _ = build_leaderboard(
+            database.fetch_leaderboard_inputs(connection),
+            previous_ranks,
+            previous_points,
+        )
         write_workbook(leaderboard, self.settings.leaderboard_output)
         self.sharepoint_client.upload_leaderboard(self.settings.leaderboard_output)
 
@@ -57,7 +62,7 @@ class SweepstakeService:
                 continue
             if database.was_posted(connection, match.match_id):
                 continue
-            affected_players = _affected_players(match, previous_ranks, leaderboard)
+            affected_players = _affected_players(match, previous_ranks, leaderboard, previous_points)
             self.notifier.post_match_update(match, affected_players, leaderboard)
             database.mark_posted(connection, match.match_id)
             processed_count += 1
@@ -71,18 +76,27 @@ def _affected_players(
     match: Match,
     previous_ranks: dict[str, int],
     leaderboard: list[LeaderboardRow],
+    previous_points: dict[str, int] | None = None,
 ) -> list[MovementRecord]:
+    previous_points = previous_points or {}
     impacted_teams = {resolve_team_code(match.home_team), resolve_team_code(match.away_team)}
     records: list[MovementRecord] = []
     for row in leaderboard:
-        if resolve_team_code(row.team_1) not in impacted_teams and resolve_team_code(row.team_2) not in impacted_teams:
+        row_impacted = tuple(
+            team_name
+            for team_name in (row.team_1, row.team_2)
+            if resolve_team_code(team_name) in impacted_teams
+        )
+        if not row_impacted:
             continue
         records.append(
             MovementRecord(
                 player=row.player,
                 previous_rank=previous_ranks.get(row.player),
                 new_rank=row.rank,
-                delta_points=row.total_points,
+                previous_points=previous_points.get(row.player),
+                current_points=row.total_points,
+                impacted_teams=row_impacted,
             )
         )
     records.sort(key=lambda item: item.new_rank)
