@@ -161,6 +161,29 @@ td {
   gap: 10px;
 }
 
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.status-pill.alive {
+  color: #f8f3dd;
+  background: rgba(130, 101, 8, 0.35);
+}
+
+.status-pill.eliminated {
+  color: #b7b7b7;
+  background: rgba(48, 48, 48, 0.85);
+}
+
 .flag {
   font-size: 1.5rem;
   line-height: 1;

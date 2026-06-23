@@ -27,6 +27,10 @@ class Settings:
         return self.root_dir / self.raw["storage"]["leaderboard_output"]
 
     @property
+    def site_output(self) -> Path:
+        return self.root_dir / self.raw["storage"]["site_output"]
+
+    @property
     def competition_code(self) -> str:
         return str(self.raw["tournament"]["competition_code"])
 
@@ -90,4 +94,3 @@ def configure_logging(level: str) -> None:
         level=getattr(logging, level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
-

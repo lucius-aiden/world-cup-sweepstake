@@ -9,6 +9,7 @@ from .api_client import build_provider
 from .configuration import load_settings
 from .scheduler import SweepstakeService
 from .sharepoint import SharePointClient
+from .site import build_static_site
 from .teams import build_notifier
 
 
@@ -16,7 +17,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="World Cup sweepstake automation")
     parser.add_argument(
         "command",
-        choices=["init-db", "sync-participants", "run-once", "serve"],
+        choices=["init-db", "sync-participants", "run-once", "serve", "build-site"],
         help="Operation to execute",
     )
     args = parser.parse_args()
@@ -35,6 +36,10 @@ def main() -> None:
 
     if args.command == "serve":
         uvicorn.run("src.web:app", host="0.0.0.0", port=8000, reload=False)
+        return
+
+    if args.command == "build-site":
+        build_static_site(settings)
         return
 
     service = SweepstakeService(

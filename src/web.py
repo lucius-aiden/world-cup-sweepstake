@@ -37,5 +37,6 @@ def index(request: Request) -> HTMLResponse:
         {
             "request": request,
             "view": view,
+            "asset_prefix": "/static",
         },
     )
