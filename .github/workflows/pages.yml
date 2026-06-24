@@ -53,7 +53,7 @@ jobs:
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         working-directory: .worktrees/main
         run: |
-          if [ "${{ github.event.inputs.force_daily_report || 'false' }}" = "true" ]; then
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event.inputs.force_daily_report || 'false' }}" = "true" ]; then
             python -m src.main --force-daily-report build-site
           else
             python -m src.main build-site
