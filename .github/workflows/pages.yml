@@ -65,6 +65,7 @@ jobs:
         env:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          FORCE_DAILY_REPORT: ${{ github.event.inputs.force_daily_report || 'false' }}
         working-directory: .worktrees/dev
         run: |
           python - <<'PY'
@@ -80,8 +81,6 @@ jobs:
               force_daily_report=getenv("FORCE_DAILY_REPORT", "false").lower() == "true",
           )
           PY
-        env:
-          FORCE_DAILY_REPORT: ${{ github.event.inputs.force_daily_report || 'false' }}
 
       - name: Persist daily reports to branches
         run: |
