@@ -24,6 +24,7 @@ class Match:
     status: str
     match_date: datetime
     stage: Optional[str] = None
+    group: Optional[str] = None
     winner: Optional[str] = None
 
 
@@ -31,6 +32,8 @@ class Match:
 class TeamStanding:
     team_code: str
     team_name: str
+    group_name: Optional[str]
+    group_position: Optional[int]
     played: int
     won: int
     drawn: int
@@ -40,6 +43,16 @@ class TeamStanding:
     goal_difference: int
     points: int
     alive: bool = True
+    qualification_status: Optional[str] = None
+
+
+@dataclass(frozen=True)
+class TeamOdds:
+    team_code: str
+    team_name: str
+    decimal: float
+    bookmaker: str | None = None
+    last_update: datetime | None = None
 
 
 @dataclass(frozen=True)

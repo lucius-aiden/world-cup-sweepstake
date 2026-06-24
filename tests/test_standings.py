@@ -11,10 +11,10 @@ def test_group_points_are_recomputed_from_completed_matches():
         Match("3", "Argentina", "Jordan", "ARG", "JOR", 0, 0, "FINISHED", datetime(2026, 6, 22, tzinfo=UTC), stage="GROUP_STAGE"),
     ]
     provider = [
-        TeamStanding("ARG", "Argentina", 2, 0, 0, 0, 0, 0, 0, 0, True),
-        TeamStanding("AUT", "Austria", 1, 0, 0, 0, 0, 0, 0, 99, True),
-        TeamStanding("JOR", "Jordan", 2, 0, 0, 0, 0, 0, 0, 99, True),
-        TeamStanding("ALG", "Algeria", 1, 0, 0, 0, 0, 0, 0, 99, False),
+        TeamStanding("ARG", "Argentina", "Group A", 1, 2, 0, 0, 0, 0, 0, 0, 0, True),
+        TeamStanding("AUT", "Austria", "Group A", 4, 1, 0, 0, 0, 0, 0, 0, 99, True),
+        TeamStanding("JOR", "Jordan", "Group A", 2, 2, 0, 0, 0, 0, 0, 0, 99, True),
+        TeamStanding("ALG", "Algeria", "Group A", 3, 1, 0, 0, 0, 0, 0, 0, 99, False),
     ]
 
     standings = {row.team_code: row for row in build_effective_standings(matches, provider)}

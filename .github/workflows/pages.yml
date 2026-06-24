@@ -6,11 +6,17 @@ on:
       - main
       - dev
   workflow_dispatch:
+    inputs:
+      force_daily_report:
+        description: Force-generate a daily report during this manual deploy
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "*/15 * * * *"
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -38,8 +44,8 @@ jobs:
       - name: Prepare branch worktrees
         run: |
           git fetch origin main dev
-          git worktree add .worktrees/main origin/main
-          git worktree add .worktrees/dev origin/dev
+          git worktree add --detach .worktrees/main origin/main
+          git worktree add --detach .worktrees/dev origin/dev
 
       - name: Build production site from main
         env:
@@ -47,7 +53,11 @@ jobs:
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         working-directory: .worktrees/main
         run: |
-          python -m src.main build-site
+          if [ "${{ github.ref }}" = "refs/heads/main" ] && [ "${{ github.event.inputs.force_daily_report || 'false' }}" = "true" ]; then
+            python -m src.main --force-daily-report build-site
+          else
+            python -m src.main build-site
+          fi
           mkdir -p "${{ github.workspace }}/_site"
           cp -R site/. "${{ github.workspace }}/_site/"
 
@@ -55,10 +65,12 @@ jobs:
         env:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
+          FORCE_DAILY_REPORT: ${{ github.event.inputs.force_daily_report || 'false' }}
         working-directory: .worktrees/dev
         run: |
           python - <<'PY'
           from pathlib import Path
+          from os import getenv
           from src.configuration import load_settings
           from src.site import build_static_site
 
@@ -66,8 +78,31 @@ jobs:
               load_settings(),
               output_dir=Path("${{ github.workspace }}/_site/dev"),
               site_base_path="/dev",
+              force_daily_report=getenv("FORCE_DAILY_REPORT", "false").lower() == "true",
           )
           PY
+
+      - name: Persist daily reports to branches
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          persist_reports() {
+            branch="$1"
+            worktree=".worktrees/$branch"
+            if [ ! -d "$worktree/outputs/daily_messages" ]; then
+              return
+            fi
+            if [ -z "$(git -C "$worktree" status --porcelain -- outputs/daily_messages)" ]; then
+              return
+            fi
+            git -C "$worktree" add outputs/daily_messages
+            git -C "$worktree" commit -m "Update daily reports [skip ci]"
+            git -C "$worktree" push origin "HEAD:$branch"
+          }
+
+          persist_reports main
+          persist_reports dev
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

@@ -35,9 +35,8 @@ class FootballDataOrgProvider(FootballDataProvider):
         self.base_url = settings.football_api_base_url
 
     def fetch_played_matches(self) -> list[Match]:
-        utc_now = datetime.now(UTC)
-        date_to = utc_now.date()
         date_from = datetime(self.settings.season, 1, 1, tzinfo=UTC).date()
+        date_to = datetime(self.settings.season, 12, 31, tzinfo=UTC).date()
         payload = self._get(
             f"/competitions/{self.settings.competition_code}/matches",
             params={
@@ -54,14 +53,19 @@ class FootballDataOrgProvider(FootballDataProvider):
             params={"season": self.settings.season},
         )
         standings: dict[str, TeamStanding] = {}
-        for table_group in payload.get("standings", []):
-            for entry in table_group.get("table", []):
+        raw_tables = payload.get("standings", [])
+        grouped_tables = [table for table in raw_tables if table.get("group")]
+        source_tables = grouped_tables or raw_tables
+        for table_group in source_tables:
+            for index, entry in enumerate(table_group.get("table", []), start=1):
                 team = entry.get("team", {})
                 team_name = team.get("name") or team.get("shortName") or "Unknown"
                 team_code = resolve_team_code(team_name, team.get("tla"))
                 standing = TeamStanding(
                     team_code=team_code,
                     team_name=team_name,
+                    group_name=table_group.get("group"),
+                    group_position=index,
                     played=int(entry.get("playedGames", 0)),
                     won=int(entry.get("won", 0)),
                     drawn=int(entry.get("draw", 0)),
@@ -71,6 +75,7 @@ class FootballDataOrgProvider(FootballDataProvider):
                     goal_difference=int(entry.get("goalDifference", 0)),
                     points=int(entry.get("points", 0)),
                     alive=self._infer_alive(entry),
+                    qualification_status=entry.get("qualification"),
                 )
                 standings[standing.team_code] = standing
         return sorted(standings.values(), key=lambda item: item.team_name)
@@ -102,6 +107,7 @@ class FootballDataOrgProvider(FootballDataProvider):
             status=item.get("status", "UNKNOWN"),
             match_date=datetime.fromisoformat(item["utcDate"].replace("Z", "+00:00")),
             stage=item.get("stage"),
+            group=item.get("group"),
             winner=winner,
         )
 

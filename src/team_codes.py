@@ -27,6 +27,8 @@ ALIASES = {
     "GERMANY": "GER",
     "GHANA": "GHA",
     "HAITI": "HTI",
+    "HAI": "HTI",
+    "HTI": "HTI",
     "IRAN": "IRN",
     "IRAQ": "IRQ",
     "ITALY": "ITA",
@@ -74,6 +76,8 @@ def canonical_team_key(team_name: str) -> str:
 def resolve_team_code(team_name: str, provider_code: str | None = None) -> str:
     if provider_code:
         cleaned = canonical_team_key(provider_code)
+        if cleaned in ALIASES:
+            return ALIASES[cleaned]
         if 2 <= len(cleaned) <= 4:
             return cleaned
     key = canonical_team_key(team_name)

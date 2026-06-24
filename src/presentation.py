@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from .daily_message import DailyMessageContext
 from .leaderboard import build_leaderboard
-from .models import LeaderboardRow
+from .models import TeamOdds
 
 FLAG_OVERRIDES = {
     "ALG": "🇩🇿",
@@ -58,107 +59,562 @@ FLAG_OVERRIDES = {
     "USA": "🇺🇸",
     "UZB": "🇺🇿",
 }
+COMPLETED_STATUSES = {"FINISHED", "FT", "AET", "PEN"}
 
 
 @dataclass(frozen=True)
-class TeamCell:
-    name: str
-    code: str
+class StatusView:
+    label: str
+    tone: str
+
+
+@dataclass(frozen=True)
+class MatchSummaryView:
+    title: str
+    detail: str
+
+
+@dataclass(frozen=True)
+class TeamCardView:
     flag: str
-    points: int
-    alive: bool
+    team_name: str
+    group_label: str
+    group_points: int
+    form: list[str]
+    status: StatusView
+    last_match: MatchSummaryView | None
+    next_match: MatchSummaryView | None
+    win_odds: str | None
 
 
 @dataclass(frozen=True)
 class ParticipantRowView:
     rank: int
     player: str
-    team_1: TeamCell
-    team_2: TeamCell
     total_points: int
     teams_alive: int
+    team_1: TeamCardView
+    team_2: TeamCardView
 
 
 @dataclass(frozen=True)
-class MatchView:
-    summary: str
-    stage: str | None
-    played_at: str
+class InsightItemView:
+    title: str
+    detail: str
+    tone: str = "neutral"
+
+
+@dataclass(frozen=True)
+class InsightSectionView:
+    title: str
+    description: str
+    items: list[InsightItemView]
+    empty_message: str
 
 
 @dataclass(frozen=True)
 class DashboardView:
     tournament_name: str
     generated_at: str
-    leaderboard: list[LeaderboardRow]
-    table_rows: list[ParticipantRowView]
-    podium: list[LeaderboardRow]
-    latest_match: MatchView | None
+    last_updated: str
+    participants_count: int
+    leaderboard_count: int
+    latest_result: str
+    home_href: str
+    leaderboard_href: str
+    asset_prefix: str
+    leaderboard_rows: list[ParticipantRowView]
+    insight_sections: list[InsightSectionView]
 
 
 def build_dashboard_view(
+    *,
     settings: Any,
     leaderboard_inputs: list[dict],
-    latest_match_row: dict | None = None,
+    standings_rows: list[dict] | None = None,
+    matches_rows: list[dict] | None = None,
+    odds_by_team: dict[str, TeamOdds] | None = None,
+    site_base_path: str = "",
+    now: datetime | None = None,
 ) -> DashboardView:
     timezone_name = settings.raw.get("app", {}).get("timezone", "Europe/London")
     display_zone = ZoneInfo(timezone_name)
+    generated_at = now or datetime.now(UTC)
     leaderboard, _ = build_leaderboard(leaderboard_inputs, previous_ranks={})
-    index_by_player = {row.player: row for row in leaderboard}
+    standings_rows = standings_rows or []
+    matches_rows = matches_rows or []
+    odds_by_team = odds_by_team or {}
 
-    grouped: dict[str, list[dict]] = {}
+    standings_by_code = {str(row["team_code"]): dict(row) for row in standings_rows}
+    matches_by_code = _group_matches_by_team(matches_rows)
+    group_context_by_code = _build_group_context(matches_rows)
+    grouped_inputs: dict[str, list[dict[str, Any]]] = {}
     for item in leaderboard_inputs:
-        grouped.setdefault(item["player"], []).append(item)
+        grouped_inputs.setdefault(str(item["player"]), []).append(dict(item))
 
-    table_rows: list[ParticipantRowView] = []
-    for player, teams in grouped.items():
-        ranked_row = index_by_player[player]
-        ordered = sorted(teams, key=lambda item: int(item.get("team_slot", 0)))
-        first, second = (_team_cell(ordered[0]), _team_cell(ordered[1]))
-        table_rows.append(
+    leaderboard_rows: list[ParticipantRowView] = []
+    for row in leaderboard:
+        teams = sorted(grouped_inputs[row.player], key=lambda item: int(item.get("team_slot", 0)))
+        first = _build_team_card(teams[0], standings_by_code, group_context_by_code, matches_by_code, odds_by_team, display_zone)
+        second = _build_team_card(teams[1], standings_by_code, group_context_by_code, matches_by_code, odds_by_team, display_zone)
+        leaderboard_rows.append(
             ParticipantRowView(
-                rank=ranked_row.rank,
-                player=player,
+                rank=row.rank,
+                player=row.player,
+                total_points=row.total_points,
+                teams_alive=row.teams_alive,
                 team_1=first,
                 team_2=second,
-                total_points=ranked_row.total_points,
-                teams_alive=ranked_row.teams_alive,
             )
         )
 
-    table_rows.sort(key=lambda row: (row.rank, row.player.lower()))
+    latest_completed = [match for match in matches_rows if _is_completed(match)]
+    latest_completed.sort(key=lambda match: str(match["match_date"]), reverse=True)
+    latest_result = "No completed matches yet"
+    if latest_completed:
+        latest_result = _match_scoreline(latest_completed[0])
 
-    latest_match = None
-    if latest_match_row:
-        latest_match = MatchView(
-            summary=f'{latest_match_row["home_team"]} {latest_match_row["home_score"]}-{latest_match_row["away_score"]} {latest_match_row["away_team"]}',
-            stage=latest_match_row["stage"],
-            played_at=_format_match_time(latest_match_row["match_date"], display_zone),
-        )
-
+    insight_sections = _build_insight_sections(matches_rows, standings_rows, group_context_by_code, display_zone, generated_at)
+    base_path = _normalize_base_path(site_base_path)
     return DashboardView(
         tournament_name=settings.raw["tournament"]["name"],
-        generated_at=datetime.now(UTC).astimezone(display_zone).strftime("%Y-%m-%d %H:%M %Z"),
-        leaderboard=leaderboard,
-        table_rows=table_rows,
-        podium=leaderboard[:3],
-        latest_match=latest_match,
+        generated_at=generated_at.astimezone(display_zone).strftime("%Y-%m-%d %H:%M %Z"),
+        last_updated=generated_at.astimezone(display_zone).strftime("%A %d %b %Y, %H:%M %Z"),
+        participants_count=len(leaderboard_rows),
+        leaderboard_count=len(leaderboard_rows),
+        latest_result=latest_result,
+        home_href=_join_path(base_path, "/"),
+        leaderboard_href=_join_path(base_path, "leaderboard/"),
+        asset_prefix=_join_path(base_path, "static"),
+        leaderboard_rows=leaderboard_rows,
+        insight_sections=insight_sections,
     )
 
 
-def _team_cell(team: dict) -> TeamCell:
-    code = str(team["team_code"])
-    return TeamCell(
-        name=str(team["team_name"]),
-        code=code,
-        flag=FLAG_OVERRIDES.get(code, "🏳️"),
-        points=int(team["points"]),
-        alive=bool(team["alive"]),
+def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
+    if not standing:
+        return StatusView(label="Alive", tone="alive")
+    qualification = str(standing.get("qualification_status") or "").lower()
+    alive = bool(standing.get("alive", 1))
+    group_position = _normalized_group_position(standing)
+    played = _safe_int(standing.get("played")) or 0
+
+    if not alive or "eliminated" in qualification:
+        return StatusView(label="Eliminated", tone="eliminated")
+    if any(keyword in qualification for keyword in ("qualified", "advance")):
+        return StatusView(label="Qualified", tone="qualified")
+    if group_position is not None and played >= 3 and group_position <= 2:
+        return StatusView(label="Qualified", tone="qualified")
+    if group_position is not None and group_position > 2 and played >= 2:
+        return StatusView(label="At Risk", tone="risk")
+    return StatusView(label="Alive", tone="alive")
+
+
+def build_daily_message_context(view: DashboardView) -> DailyMessageContext:
+    section_map = {section.title: section for section in view.insight_sections}
+    leader = view.leaderboard_rows[0] if view.leaderboard_rows else None
+    current_leader = "No leader yet"
+    if leader:
+        current_leader = f"{leader.player} ({leader.total_points} pts)"
+    return DailyMessageContext(
+        current_leader=current_leader,
+        best_performing_teams=[item.title for item in section_map.get("Best Performing Teams", _empty_section("")).items[:3]],
+        teams_in_trouble=[item.title for item in section_map.get("Teams In Trouble", _empty_section("")).items[:3]],
+        biggest_team_changes=[item.title for item in section_map.get("Top Matches", _empty_section("")).items[:3]],
+        todays_key_fixtures=[item.title for item in section_map.get("Today's Key Fixtures", _empty_section("")).items[:3]],
+        leaderboard_url=view.leaderboard_href,
     )
 
 
-def _format_match_time(raw: str, display_zone: ZoneInfo) -> str:
-    try:
-        return datetime.fromisoformat(raw).astimezone(display_zone).strftime("%Y-%m-%d %H:%M %Z")
-    except ValueError:
-        return raw
+def _build_team_card(
+    team_input: dict[str, Any],
+    standings_by_code: dict[str, dict[str, Any]],
+    group_context_by_code: dict[str, dict[str, Any]],
+    matches_by_code: dict[str, list[dict[str, Any]]],
+    odds_by_team: dict[str, TeamOdds],
+    display_zone: ZoneInfo,
+) -> TeamCardView:
+    team_code = str(team_input["team_code"])
+    standing = standings_by_code.get(team_code)
+    context = group_context_by_code.get(team_code, {})
+    team_matches = matches_by_code.get(team_code, [])
+    last_match = _last_match(team_matches, display_zone)
+    next_match = _next_match(team_matches, display_zone)
+    odds = odds_by_team.get(team_code)
+    status_context = {}
+    if standing:
+        status_context |= standing
+    if context:
+        status_context |= context
+    status_context["alive"] = team_input.get("alive", 1)
+    return TeamCardView(
+        flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
+        team_name=str(team_input["team_name"]),
+        group_label=_group_label(context or standing),
+        group_points=int(standing["points"]) if standing else int(team_input.get("points", 0)),
+        form=_team_form(team_matches, team_code),
+        status=determine_team_status(status_context),
+        last_match=last_match,
+        next_match=next_match,
+        win_odds=_format_odds(odds),
+    )
+
+
+def _build_insight_sections(
+    matches_rows: list[dict[str, Any]],
+    standings_rows: list[dict[str, Any]],
+    group_context_by_code: dict[str, dict[str, Any]],
+    display_zone: ZoneInfo,
+    generated_at: datetime,
+) -> list[InsightSectionView]:
+    standings = [dict(row) for row in standings_rows]
+    standings = [row | group_context_by_code.get(str(row["team_code"]), {}) for row in standings]
+    now_local = generated_at.astimezone(display_zone)
+    today = now_local.date()
+    recent_window_start = (now_local - timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
+    completed_recent = [
+        match
+        for match in matches_rows
+        if _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone) >= recent_window_start
+    ]
+    upcoming_today = [
+        match for match in matches_rows if not _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone).date() == today
+    ]
+    latest_results = sorted(
+        [match for match in matches_rows if _is_completed(match)],
+        key=lambda match: str(match["match_date"]),
+        reverse=True,
+    )[:8]
+
+    best_performing = sorted(
+        standings,
+        key=lambda row: (-int(row["points"]), -int(row["goal_difference"]), str(row["team_name"]).lower()),
+    )[:5]
+    teams_in_trouble = sorted(
+        [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
+        key=lambda row: (
+            int(row["points"]),
+            int(row["goal_difference"]),
+            int(row.get("goals_for", 0)),
+            str(row["team_name"]).lower(),
+        ),
+    )[:5]
+    top_match_count = len(upcoming_today) if upcoming_today else 3
+    biggest_winners = sorted(
+        [match for match in completed_recent if _goal_margin(match) > 0],
+        key=lambda match: (-_total_goals(match), -_goal_margin(match), str(match["match_date"])),
+    )[:top_match_count]
+
+    return [
+        InsightSectionView(
+            title="Top Matches",
+            description="Top matches are the biggest scoring games or result swings from the last two days.",
+            items=[
+                InsightItemView(
+                    title=f'{_flag_for_match_team(match)} {_winning_team(match)}',
+                    detail=_match_scoreline(match),
+                    tone="qualified",
+                )
+                for match in biggest_winners
+            ],
+            empty_message="No standout completed matches in the last two days.",
+        ),
+        InsightSectionView(
+            title="Today's Key Fixtures",
+            description="Key fixtures are today's remaining scheduled matches, ordered by kickoff time.",
+            items=[
+                InsightItemView(
+                    title=f'{_flag_for_code(match.get("home_team_code"))} {match["home_team"]} vs {_flag_for_code(match.get("away_team_code"))} {match["away_team"]}',
+                    detail=_match_time(match, display_zone),
+                )
+                for match in sorted(upcoming_today, key=lambda match: str(match["match_date"]))[:5]
+            ],
+            empty_message="No fixtures scheduled today.",
+        ),
+        InsightSectionView(
+            title="Best Performing Teams",
+            description="Best performing teams are ranked by group points, then goal difference, then goals scored.",
+            items=[
+                InsightItemView(
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
+                    detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
+                    tone="qualified",
+                )
+                for row in best_performing
+            ],
+            empty_message="No standings available yet.",
+        ),
+        InsightSectionView(
+            title="Teams In Trouble",
+            description="Teams in trouble are the bottom sides in each group, ordered by the fewest points then the worst goal difference.",
+            items=[
+                InsightItemView(
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
+                    detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
+                    tone=determine_team_status(row).tone,
+                )
+                for row in teams_in_trouble
+            ],
+            empty_message="No teams are in trouble right now.",
+        ),
+        InsightSectionView(
+            title="Latest Results",
+            description="Latest results show the eight most recent completed matches.",
+            items=[
+                InsightItemView(
+                    title=_match_scoreline(match),
+                    detail=_match_meta(match, display_zone),
+                )
+                for match in latest_results[:8]
+            ],
+            empty_message="Waiting for the first result.",
+        ),
+    ]
+
+
+def _last_match(matches: list[dict[str, Any]], display_zone: ZoneInfo) -> MatchSummaryView | None:
+    completed = [match for match in matches if _is_completed(match)]
+    if not completed:
+        return None
+    latest = max(completed, key=lambda match: str(match["match_date"]))
+    return MatchSummaryView(title=_match_scoreline(latest), detail=_match_meta(latest, display_zone))
+
+
+def _next_match(matches: list[dict[str, Any]], display_zone: ZoneInfo) -> MatchSummaryView | None:
+    upcoming = [match for match in matches if not _is_completed(match)]
+    if not upcoming:
+        return None
+    next_match = min(upcoming, key=lambda match: str(match["match_date"]))
+    return MatchSummaryView(
+        title=f'{next_match["home_team"]} vs {next_match["away_team"]}',
+        detail=_match_time(next_match, display_zone),
+    )
+
+
+def _team_form(matches: list[dict[str, Any]], team_code: str) -> list[str]:
+    completed = sorted(
+        [match for match in matches if _is_completed(match)],
+        key=lambda match: str(match["match_date"]),
+    )[:5]
+    return [_result_for_team(match, team_code) for match in completed]
+
+
+def _result_for_team(match: dict[str, Any], team_code: str) -> str:
+    home_score = _safe_int(match.get("home_score"))
+    away_score = _safe_int(match.get("away_score"))
+    if home_score is None or away_score is None:
+        return "D"
+    if home_score == away_score:
+        return "D"
+    is_home = str(match.get("home_team_code") or "") == team_code
+    team_won = home_score > away_score if is_home else away_score > home_score
+    return "W" if team_won else "L"
+
+
+def _group_matches_by_team(matches_rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in matches_rows:
+        match = dict(row)
+        home_code = match.get("home_team_code")
+        away_code = match.get("away_team_code")
+        if home_code:
+            grouped.setdefault(str(home_code), []).append(match)
+        if away_code:
+            grouped.setdefault(str(away_code), []).append(match)
+    return grouped
+
+
+def _group_label(standing: dict[str, Any] | None) -> str:
+    if not standing:
+        return "Group position TBD"
+    group_name = standing.get("group_name")
+    group_position = _normalized_group_position(standing)
+    if not group_name or group_position is None:
+        return "Group position TBD"
+    return f"{group_name} · {group_position}{_ordinal(int(group_position))}"
+
+
+def _build_group_context(matches_rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    groups: dict[str, dict[str, dict[str, Any]]] = {}
+    for row in matches_rows:
+        match = dict(row)
+        if str(match.get("stage") or "").upper() != "GROUP_STAGE":
+            continue
+        group_name = match.get("group_name")
+        if not group_name:
+            continue
+        home_code = str(match.get("home_team_code") or "")
+        away_code = str(match.get("away_team_code") or "")
+        home_name = str(match.get("home_team") or "")
+        away_name = str(match.get("away_team") or "")
+        if home_code:
+            groups.setdefault(group_name, {}).setdefault(home_code, _group_row(home_code, home_name, group_name))
+        if away_code:
+            groups.setdefault(group_name, {}).setdefault(away_code, _group_row(away_code, away_name, group_name))
+        if not _is_completed(match):
+            continue
+        home_score = _safe_int(match.get("home_score"))
+        away_score = _safe_int(match.get("away_score"))
+        if home_score is None or away_score is None or not home_code or not away_code:
+            continue
+        home = groups[group_name][home_code]
+        away = groups[group_name][away_code]
+        home["played"] += 1
+        away["played"] += 1
+        home["goals_for"] += home_score
+        home["goals_against"] += away_score
+        away["goals_for"] += away_score
+        away["goals_against"] += home_score
+        if home_score > away_score:
+            home["won"] += 1
+            away["lost"] += 1
+            home["points"] += 3
+        elif home_score < away_score:
+            away["won"] += 1
+            home["lost"] += 1
+            away["points"] += 3
+        else:
+            home["drawn"] += 1
+            away["drawn"] += 1
+            home["points"] += 1
+            away["points"] += 1
+
+    by_team: dict[str, dict[str, Any]] = {}
+    for group_name, teams in groups.items():
+        ordered = sorted(
+            teams.values(),
+            key=lambda row: (-row["points"], -(row["goals_for"] - row["goals_against"]), -row["goals_for"], row["team_name"].lower()),
+        )
+        for index, row in enumerate(ordered, start=1):
+            by_team[row["team_code"]] = {
+                "group_name": _format_group_name(group_name),
+                "group_position": index,
+            }
+    return by_team
+
+
+def _group_row(team_code: str, team_name: str, group_name: str) -> dict[str, Any]:
+    return {
+        "team_code": team_code,
+        "team_name": team_name,
+        "group_name": group_name,
+        "played": 0,
+        "won": 0,
+        "drawn": 0,
+        "lost": 0,
+        "goals_for": 0,
+        "goals_against": 0,
+        "points": 0,
+    }
+
+
+def _format_group_name(raw: str) -> str:
+    cleaned = str(raw).replace("GROUP_", "Group ").replace("_", " ").title()
+    return cleaned
+
+
+def _flag_for_code(code: Any) -> str:
+    if not code:
+        return "🏳️"
+    return FLAG_OVERRIDES.get(str(code), "🏳️")
+
+
+def _flag_for_match_team(match: dict[str, Any]) -> str:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    if home_score >= away_score:
+        return _flag_for_code(match.get("home_team_code"))
+    return _flag_for_code(match.get("away_team_code"))
+
+
+def _normalized_group_position(standing: dict[str, Any] | None) -> int | None:
+    if not standing:
+        return None
+    position = _safe_int(standing.get("group_position"))
+    if position is None or position < 1 or position > 4:
+        return None
+    return position
+
+
+def _ordinal(value: int) -> str:
+    if 10 <= value % 100 <= 20:
+        return "th"
+    return {1: "st", 2: "nd", 3: "rd"}.get(value % 10, "th")
+
+
+def _match_scoreline(match: dict[str, Any]) -> str:
+    return f'{match["home_team"]} {_safe_int(match.get("home_score"))}-{_safe_int(match.get("away_score"))} {match["away_team"]}'
+
+
+def _match_meta(match: dict[str, Any], display_zone: ZoneInfo) -> str:
+    stage = str(match.get("stage") or "Match")
+    return f"{stage.replace('_', ' ').title()} · {_match_time(match, display_zone)}"
+
+
+def _match_time(match: dict[str, Any], display_zone: ZoneInfo) -> str:
+    return _parse_match_date(match["match_date"]).astimezone(display_zone).strftime("%d %b %H:%M %Z")
+
+
+def _parse_match_date(value: Any) -> datetime:
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value))
+
+
+def _format_odds(odds: TeamOdds | None) -> str | None:
+    if odds is None:
+        return None
+    implied_probability = 1 / odds.decimal if odds.decimal else 0
+    one_in = max(1, round(odds.decimal))
+    return f"1 in {one_in} chance ({implied_probability:.1%})"
+
+
+def _goal_margin(match: dict[str, Any]) -> int:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    return abs(home_score - away_score)
+
+
+def _total_goals(match: dict[str, Any]) -> int:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    return home_score + away_score
+
+
+def _winning_team(match: dict[str, Any]) -> str:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    if home_score >= away_score:
+        return str(match["home_team"])
+    return str(match["away_team"])
+
+
+def _is_completed(match: dict[str, Any]) -> bool:
+    return str(match.get("status", "")).upper() in COMPLETED_STATUSES
+
+
+def _safe_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    return int(value)
+
+
+def _join_path(base_path: str, suffix: str) -> str:
+    base = _normalize_base_path(base_path)
+    if suffix in {"", "/"}:
+        return f"{base}/" if base != "/" else "/"
+    cleaned = suffix.lstrip("/")
+    if base == "/":
+        return f"/{cleaned}"
+    return f"{base}/{cleaned}".replace("//", "/")
+
+
+def _normalize_base_path(base_path: str) -> str:
+    cleaned = (base_path or "").strip()
+    if not cleaned or cleaned == "/":
+        return "/"
+    return "/" + cleaned.strip("/")
+
+
+def _empty_section(title: str) -> InsightSectionView:
+    return InsightSectionView(title=title, description="", items=[], empty_message="")

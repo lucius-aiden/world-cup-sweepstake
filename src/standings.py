@@ -26,6 +26,8 @@ def build_effective_standings(
         computed[home_code] = TeamStanding(
             team_code=home.team_code,
             team_name=home.team_name,
+            group_name=home.group_name,
+            group_position=home.group_position,
             played=home.played + 1,
             won=home.won + int(home_points == 3),
             drawn=home.drawn + int(home_points == 1),
@@ -35,10 +37,13 @@ def build_effective_standings(
             goal_difference=(home.goals_for + match.home_score) - (home.goals_against + match.away_score),
             points=home.points + home_points,
             alive=_alive_for(home, standings_by_code.get(home_code)),
+            qualification_status=home.qualification_status,
         )
         computed[away_code] = TeamStanding(
             team_code=away.team_code,
             team_name=away.team_name,
+            group_name=away.group_name,
+            group_position=away.group_position,
             played=away.played + 1,
             won=away.won + int(away_points == 3),
             drawn=away.drawn + int(away_points == 1),
@@ -48,6 +53,7 @@ def build_effective_standings(
             goal_difference=(away.goals_for + match.away_score) - (away.goals_against + match.home_score),
             points=away.points + away_points,
             alive=_alive_for(away, standings_by_code.get(away_code)),
+            qualification_status=away.qualification_status,
         )
 
     merged = standings_by_code.copy()
@@ -69,6 +75,8 @@ def _current_standing(
         return TeamStanding(
             team_code=provider.team_code,
             team_name=provider.team_name,
+            group_name=provider.group_name,
+            group_position=provider.group_position,
             played=0,
             won=0,
             drawn=0,
@@ -78,10 +86,13 @@ def _current_standing(
             goal_difference=0,
             points=0,
             alive=provider.alive,
+            qualification_status=provider.qualification_status,
         )
     return TeamStanding(
         team_code=team_code,
         team_name=team_name,
+        group_name=None,
+        group_position=None,
         played=0,
         won=0,
         drawn=0,
@@ -91,6 +102,7 @@ def _current_standing(
         goal_difference=0,
         points=0,
         alive=True,
+        qualification_status=None,
     )
 
 

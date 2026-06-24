@@ -1,14 +1,14 @@
 # World Cup Sweepstake
 
-Python sweepstake tracker for a FIFA World Cup 2026 office pool, with a live scoreboard dashboard that can publish to GitHub Pages.
+Python sweepstake tracker for a FIFA World Cup 2026 office pool, with a two-page dashboard that publishes safely to GitHub Pages.
 
 ## What it does
 
 - Polls a football API on a 15-minute schedule.
 - Tracks completed matches in SQLite.
 - Rebuilds the participant leaderboard from current tournament standings.
-- Serves a dark scoreboard-style dashboard based on the participant table layout.
-- Exports a static dashboard bundle for GitHub Pages deployment.
+- Builds a two-page static site with `Insights` and `Leaderboard`.
+- Exports a combined GitHub Pages bundle where production stays on `main` and sandbox lives under `/dev/`.
 
 ## Default stack
 
@@ -120,9 +120,35 @@ Then open <http://localhost:8000>.
 
 ## Deployment options
 
-### GitHub Actions
+### GitHub Actions / GitHub Pages
 
-The repo includes [`.github/workflows/pages.yml`](.github/workflows/pages.yml) for push, manual, and 15-minute scheduled deployments. Add `FOOTBALL_DATA_API_KEY` in repository Actions secrets, then enable GitHub Pages in the repo settings with `GitHub Actions` as the source.
+The repo includes [`.github/workflows/pages.yml`](.github/workflows/pages.yml) for push, manual, and 15-minute scheduled deployments.
+
+Deploy model:
+
+- `main` builds the production site at `/`
+- `dev` builds the sandbox site at `/dev/`
+- Every Pages deployment publishes a combined artifact, so a `dev` deploy does not overwrite production
+
+Required secrets:
+
+- `FOOTBALL_DATA_API_KEY`
+- `THE_ODDS_API_KEY` only if you enable the optional odds provider in `config/settings.yaml`
+
+Enable GitHub Pages in the repo settings with `GitHub Actions` as the source.
+
+### Sandbox testing
+
+- Push V2 work to the existing `dev` branch.
+- Open the sandbox at `/dev/` on the GitHub Pages site.
+- Production remains available at the root URL from `main`.
+
+### Merging V2 to production
+
+1. Finish and validate V2 on `dev`.
+2. Confirm the sandbox URL under `/dev/` looks correct.
+3. Merge `dev` into `main`.
+4. Let the Pages workflow republish the combined bundle so the root URL updates to the approved version.
 
 ### Docker
 
@@ -164,6 +190,7 @@ pytest
 
 - Runs are idempotent at the match level through the `matches` table and `posted_to_teams` flag.
 - The dashboard can be previewed locally with FastAPI or published as a static site.
+- Daily message files are generated at `outputs/daily_messages/YYYY-MM-DD.txt` only once per weekday during the 07:00 UK refresh window.
 - The workbook output is still available locally, but the live hosted path is the GitHub Pages dashboard.
 - Participant team names can be entered as common country names like `USA` and are normalized to stable codes where possible.
-- `alive` currently relies on provider qualification signals when available. If your chosen upstream exposes richer knockout progression flags, we can tighten that logic further.
+- Tournament winner odds use an abstraction layer and stay hidden unless a real provider returns data.

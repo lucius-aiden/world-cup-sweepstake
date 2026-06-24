@@ -19,6 +19,18 @@ storage:
   participants_csv: config/participants.csv
   leaderboard_output: output/leaderboard.xlsx
   site_output: site
+  daily_messages_output: outputs/daily_messages
+  odds_cache_path: data/odds_cache.json
+
+odds_api:
+  provider: the_odds_api
+  base_url: https://api.the-odds-api.com/v4
+  api_key_env: THE_ODDS_API_KEY
+  sport_key: soccer_fifa_world_cup_winner
+  regions: uk
+  odds_format: decimal
+  timeout_seconds: 20
+  refresh_hours: 6
 
 sharepoint:
   tenant_id_env: MS_TENANT_ID
@@ -42,3 +54,4 @@ teams:
 job:
   recent_matches_window_days: 7
   top_n_summary: 3
+  daily_message_hour: 7
