@@ -44,8 +44,8 @@ jobs:
       - name: Prepare branch worktrees
         run: |
           git fetch origin main dev
-          git worktree add -B main .worktrees/main origin/main
-          git worktree add -B dev .worktrees/dev origin/dev
+          git worktree add --detach .worktrees/main origin/main
+          git worktree add --detach .worktrees/dev origin/dev
 
       - name: Build production site from main
         env:
@@ -98,7 +98,7 @@ jobs:
             fi
             git -C "$worktree" add outputs/daily_messages
             git -C "$worktree" commit -m "Update daily reports [skip ci]"
-            git -C "$worktree" push origin "$branch"
+            git -C "$worktree" push origin "HEAD:$branch"
           }
 
           persist_reports main
