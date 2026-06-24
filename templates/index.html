@@ -13,9 +13,9 @@
     <main class="page-shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Sweepstake V2</p>
+          <p class="eyebrow">Pearson ELS Sweepstake</p>
           <h1>{{ view.tournament_name }}</h1>
-          <p class="subcopy">A quick-read tournament dashboard with just the bits casual football watchers actually need.</p>
+          <p class="subcopy">Official Scoreboard UI for ELS 2026 Football World Cup Sweepstake. Track your teams and their performance in the world cup so far.</p>
         </div>
         <nav class="nav-tabs" aria-label="Primary">
           <a class="nav-tab is-active" href="{{ home_href }}">Insights</a>
@@ -40,7 +40,7 @@
 
       <section class="insight-grid">
         {% for section in view.insight_sections %}
-        <article class="panel insight-panel">
+        <article class="panel insight-panel{% if section.title == 'Latest Results' %} insight-panel-wide{% endif %}">
           <div class="section-header">
             <h2>{{ section.title }}</h2>
             <p class="section-copy">{{ section.description }}</p>

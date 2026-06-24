@@ -96,6 +96,10 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert "Insights" in index_html
     assert "Leaderboard" in leaderboard_html
     assert "Alice" in leaderboard_html
+    assert "Pearson ELS Sweepstake" in index_html
+    assert "Pearson ELS Sweepstake" in leaderboard_html
+    assert "Official Scoreboard UI for ELS 2026 Football World Cup Sweepstake." in index_html
+    assert 'class="panel insight-panel insight-panel-wide"' in index_html
     assert 'href="./leaderboard/"' in index_html
     assert 'href="../"' in leaderboard_html
     assert 'href="./"' in leaderboard_html

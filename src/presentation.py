@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -271,8 +271,11 @@ def _build_insight_sections(
     standings = [row | group_context_by_code.get(str(row["team_code"]), {}) for row in standings]
     now_local = generated_at.astimezone(display_zone)
     today = now_local.date()
-    completed_today = [
-        match for match in matches_rows if _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone).date() == today
+    recent_window_start = (now_local - timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
+    completed_recent = [
+        match
+        for match in matches_rows
+        if _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone) >= recent_window_start
     ]
     upcoming_today = [
         match for match in matches_rows if not _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone).date() == today
@@ -281,24 +284,31 @@ def _build_insight_sections(
         [match for match in matches_rows if _is_completed(match)],
         key=lambda match: str(match["match_date"]),
         reverse=True,
-    )[:5]
+    )[:8]
 
     best_performing = sorted(
         standings,
         key=lambda row: (-int(row["points"]), -int(row["goal_difference"]), str(row["team_name"]).lower()),
     )[:5]
-    teams_in_trouble = [
-        row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}
-    ][:5]
-    biggest_winners = sorted(
-        [match for match in completed_today if _goal_margin(match) > 0],
-        key=lambda match: (-_goal_margin(match), str(match["match_date"])),
+    teams_in_trouble = sorted(
+        [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
+        key=lambda row: (
+            int(row["points"]),
+            int(row["goal_difference"]),
+            int(row.get("goals_for", 0)),
+            str(row["team_name"]).lower(),
+        ),
     )[:5]
+    top_match_count = len(upcoming_today) if upcoming_today else 3
+    biggest_winners = sorted(
+        [match for match in completed_recent if _goal_margin(match) > 0],
+        key=lambda match: (-_total_goals(match), -_goal_margin(match), str(match["match_date"])),
+    )[:top_match_count]
 
     return [
         InsightSectionView(
             title="Top Matches",
-            description="Top matches are today's completed results with the clearest scoreboard impact or biggest result swing.",
+            description="Top matches are the biggest scoring games or result swings from the last two days.",
             items=[
                 InsightItemView(
                     title=f'{_flag_for_match_team(match)} {_winning_team(match)}',
@@ -307,7 +317,7 @@ def _build_insight_sections(
                 )
                 for match in biggest_winners
             ],
-            empty_message="No completed wins today yet.",
+            empty_message="No standout completed matches in the last two days.",
         ),
         InsightSectionView(
             title="Today's Key Fixtures",
@@ -336,11 +346,11 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Teams In Trouble",
-            description="Teams in trouble are sides sitting outside the top two in their group after at least two completed group matches.",
+            description="Teams in trouble are the bottom sides in each group, ordered by the fewest points then the worst goal difference.",
             items=[
                 InsightItemView(
                     title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
-                    detail=f'{_group_label(row)} · {int(row["points"])} pts',
+                    detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
                     tone=determine_team_status(row).tone,
                 )
                 for row in teams_in_trouble
@@ -554,13 +564,21 @@ def _parse_match_date(value: Any) -> datetime:
 def _format_odds(odds: TeamOdds | None) -> str | None:
     if odds is None:
         return None
-    return f"{odds.decimal:.2f}"
+    implied_probability = 1 / odds.decimal if odds.decimal else 0
+    one_in = max(1, round(odds.decimal))
+    return f"1 in {one_in} chance ({implied_probability:.1%})"
 
 
 def _goal_margin(match: dict[str, Any]) -> int:
     home_score = _safe_int(match.get("home_score")) or 0
     away_score = _safe_int(match.get("away_score")) or 0
     return abs(home_score - away_score)
+
+
+def _total_goals(match: dict[str, Any]) -> int:
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    return home_score + away_score
 
 
 def _winning_team(match: dict[str, Any]) -> str:

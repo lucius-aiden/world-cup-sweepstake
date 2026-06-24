@@ -13,7 +13,7 @@
     <main class="page-shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow">Sweepstake V2</p>
+          <p class="eyebrow">Pearson ELS Sweepstake</p>
           <h1>Leaderboard</h1>
           <p class="subcopy">Tap a participant to reveal both teams with current group standing, form, match context, and tournament winner odds when available.</p>
         </div>
@@ -42,6 +42,14 @@
         <div class="section-header">
           <h2>Participants</h2>
         </div>
+        <div class="summary-headings" aria-hidden="true">
+          <span>Rank</span>
+          <span>Participant</span>
+          <span>Team 1</span>
+          <span>Team 2</span>
+          <span>Total</span>
+          <span>Alive</span>
+        </div>
         <div class="leaderboard-list">
           {% for row in view.leaderboard_rows %}
           <details class="participant-row">
@@ -49,21 +57,12 @@
               <div class="summary-cell summary-rank">#{{ row.rank }}</div>
               <div class="summary-cell summary-player">
                 <strong>{{ row.player }}</strong>
-                <span>{{ row.total_points }} pts · {{ row.teams_alive }} alive</span>
               </div>
               <div class="summary-cell summary-team">{{ row.team_1.flag }} {{ row.team_1.team_name }}</div>
               <div class="summary-cell summary-team">{{ row.team_2.flag }} {{ row.team_2.team_name }}</div>
               <div class="summary-cell summary-points">{{ row.total_points }}</div>
               <div class="summary-cell summary-alive">{{ row.teams_alive }}</div>
             </summary>
-            <div class="summary-headings" aria-hidden="true">
-              <span>Rank</span>
-              <span>Participant</span>
-              <span>Team 1</span>
-              <span>Team 2</span>
-              <span>Total</span>
-              <span>Alive</span>
-            </div>
             <div class="expand-shell">
             <div class="summary-teams visually-hidden">
                 <span>{{ row.team_1.flag }} {{ row.team_1.team_name }}</span>

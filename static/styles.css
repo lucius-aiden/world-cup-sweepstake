@@ -188,12 +188,17 @@ h3 {
 }
 
 .section-copy {
-  margin: 6px 0 0;
+  margin: 6px 0 18px;
 }
 
 .insight-item:first-child {
   border-top: 0;
   padding-top: 0;
+}
+
+.insight-list,
+.empty-state {
+  margin-top: 8px;
 }
 
 .insight-item strong {
@@ -215,6 +220,7 @@ h3 {
 }
 
 .summary-headings {
+  margin-bottom: 10px;
   padding: 0 20px 12px;
   color: var(--muted);
   font-family: "Barlow Condensed", sans-serif;
@@ -257,6 +263,11 @@ h3 {
   font-family: "Barlow Condensed", sans-serif;
   font-size: 1.4rem;
   font-weight: 700;
+}
+
+.summary-player {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.2rem;
 }
 
 .summary-player strong,
@@ -401,6 +412,10 @@ h3 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0 18px;
+}
+
+.insight-panel-wide {
+  grid-column: 1 / -1;
 }
 
 .insight-list-results .insight-item:nth-child(2) {
