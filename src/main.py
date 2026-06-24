@@ -18,6 +18,11 @@ def main() -> None:
     parser.add_argument("--output-dir", help="Override site output directory for build-site")
     parser.add_argument("--base-path", default="", help="Base path prefix for generated site links")
     parser.add_argument(
+        "--force-daily-report",
+        action="store_true",
+        help="Generate a daily report even outside the normal weekday refresh window",
+    )
+    parser.add_argument(
         "command",
         choices=["init-db", "sync-participants", "run-once", "serve", "build-site"],
         help="Operation to execute",
@@ -46,6 +51,7 @@ def main() -> None:
             settings,
             output_dir=(settings.root_dir / args.output_dir) if args.output_dir else None,
             site_base_path=args.base_path,
+            force_daily_report=args.force_daily_report,
         )
         return
 

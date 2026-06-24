@@ -112,3 +112,45 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert "Daily Reports" in reports_index
     assert './2026-06-23.txt' in reports_index
     assert "Current leader:" in published_report
+
+
+def test_build_static_site_can_force_daily_message_outside_refresh_window(tmp_path, monkeypatch):
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "participants.csv").write_text(
+        "Player,Team1,Team2\nAlice,Brazil,Panama\nBob,Japan,Mexico\n",
+        encoding="utf-8",
+    )
+
+    settings = Settings(
+        raw={
+            "app": {"name": "world-cup-sweepstake", "timezone": "Europe/London"},
+            "tournament": {"name": "FIFA World Cup 2026", "competition_code": "WC", "season": 2026},
+            "football_api": {
+                "provider": "football_data",
+                "base_url": "https://example.com",
+                "api_key_env": "FOOTBALL_DATA_API_KEY",
+            },
+            "odds_api": {"provider": "none"},
+            "storage": {
+                "database_path": "data/test.db",
+                "participants_csv": "config/participants.csv",
+                "leaderboard_output": "output/leaderboard.xlsx",
+                "site_output": "site",
+                "daily_messages_output": "outputs/daily_messages",
+            },
+            "teams": {"notifier": "console"},
+            "job": {"recent_matches_window_days": 7, "top_n_summary": 3, "daily_message_hour": 7},
+        },
+        root_dir=tmp_path,
+    )
+
+    monkeypatch.setattr("src.site.build_provider", lambda _: StubProvider())
+
+    build_static_site(
+        settings,
+        now=datetime(2026, 6, 23, 12, 0, tzinfo=UTC),
+        force_daily_report=True,
+    )
+
+    assert (tmp_path / "outputs" / "daily_messages" / "2026-06-23.txt").exists()

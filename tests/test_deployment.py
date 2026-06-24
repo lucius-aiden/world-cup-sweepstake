@@ -18,3 +18,5 @@ def test_pages_workflow_builds_prod_and_dev_without_overwriting():
     assert '"${{ github.workspace }}/_site"' in run_commands
     assert '"${{ github.workspace }}/_site/dev"' in run_commands
     assert 'site_base_path="/dev"' in run_commands
+    assert "force_daily_report" in str(workflow["on"]["workflow_dispatch"])
+    assert "--force-daily-report" in run_commands

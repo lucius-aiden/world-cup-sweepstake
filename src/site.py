@@ -26,6 +26,7 @@ def build_static_site(
     *,
     output_dir: Path | None = None,
     site_base_path: str = "",
+    force_daily_report: bool = False,
     now: datetime | None = None,
 ) -> Path:
     run_time = now or utc_now()
@@ -62,7 +63,7 @@ def build_static_site(
     (target_dir / "index.html").write_text(home_html, encoding="utf-8")
     (target_dir / "leaderboard" / "index.html").write_text(leaderboard_html, encoding="utf-8")
 
-    maybe_generate_daily_message(settings, connection, view, run_time)
+    maybe_generate_daily_message(settings, connection, view, run_time, force=force_daily_report)
     publish_daily_reports(settings, target_dir)
     return target_dir
 
@@ -99,15 +100,23 @@ def build_dashboard_view_from_database(
     )
 
 
-def maybe_generate_daily_message(settings: Settings, connection: sqlite3.Connection, view, run_time: datetime) -> Path | None:
+def maybe_generate_daily_message(
+    settings: Settings,
+    connection: sqlite3.Connection,
+    view,
+    run_time: datetime,
+    *,
+    force: bool = False,
+) -> Path | None:
     timezone_name = settings.raw.get("app", {}).get("timezone", "Europe/London")
     last_generated = database.get_job_state(connection, "daily_message:last_generated_date")
-    if not should_generate_daily_message(
+    should_generate = should_generate_daily_message(
         now=run_time,
         timezone_name=timezone_name,
         last_generated_for_date=last_generated,
         target_hour=settings.daily_message_hour,
-    ):
+    )
+    if not force and not should_generate:
         return None
 
     context = build_daily_message_context(view)

@@ -6,6 +6,12 @@ on:
       - main
       - dev
   workflow_dispatch:
+    inputs:
+      force_daily_report:
+        description: Force-generate a daily report during this manual deploy
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: "*/15 * * * *"
 
@@ -47,7 +53,11 @@ jobs:
           THE_ODDS_API_KEY: ${{ secrets.THE_ODDS_API_KEY }}
         working-directory: .worktrees/main
         run: |
-          python -m src.main build-site
+          if [ "${{ github.event.inputs.force_daily_report || 'false' }}" = "true" ]; then
+            python -m src.main --force-daily-report build-site
+          else
+            python -m src.main build-site
+          fi
           mkdir -p "${{ github.workspace }}/_site"
           cp -R site/. "${{ github.workspace }}/_site/"
 
@@ -59,6 +69,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          from os import getenv
           from src.configuration import load_settings
           from src.site import build_static_site
 
@@ -66,8 +77,11 @@ jobs:
               load_settings(),
               output_dir=Path("${{ github.workspace }}/_site/dev"),
               site_base_path="/dev",
+              force_daily_report=getenv("FORCE_DAILY_REPORT", "false").lower() == "true",
           )
           PY
+        env:
+          FORCE_DAILY_REPORT: ${{ github.event.inputs.force_daily_report || 'false' }}
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
