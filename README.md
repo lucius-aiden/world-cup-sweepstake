@@ -8,6 +8,7 @@ Python sweepstake tracker for a FIFA World Cup 2026 office pool, with a two-page
 - Tracks completed matches in SQLite.
 - Rebuilds the participant leaderboard from current tournament standings.
 - Builds a two-page static site with `Insights` and `Leaderboard`.
+- Publishes generated daily report text files under `/reports/` and `/dev/reports/`.
 - Exports a combined GitHub Pages bundle where production stays on `main` and sandbox lives under `/dev/`.
 
 ## Default stack
@@ -190,7 +191,7 @@ pytest
 
 - Runs are idempotent at the match level through the `matches` table and `posted_to_teams` flag.
 - The dashboard can be previewed locally with FastAPI or published as a static site.
-- Daily message files are generated at `outputs/daily_messages/YYYY-MM-DD.txt` only once per weekday during the 07:00 UK refresh window.
+- Daily message files are generated at `outputs/daily_messages/YYYY-MM-DD.txt` only once per weekday during the 07:00 UK refresh window, then copied into the published static site under `reports/`.
 - The workbook output is still available locally, but the live hosted path is the GitHub Pages dashboard.
 - Participant team names can be entered as common country names like `USA` and are normalized to stable codes where possible.
 - Tournament winner odds use an abstraction layer and stay hidden unless a real provider returns data.
