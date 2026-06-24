@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import html
 import shutil
 import sqlite3
 from dataclasses import replace
@@ -64,7 +63,6 @@ def build_static_site(
     (target_dir / "leaderboard" / "index.html").write_text(leaderboard_html, encoding="utf-8")
 
     maybe_generate_daily_message(settings, connection, view, run_time, force=force_daily_report)
-    publish_daily_reports(settings, target_dir)
     return target_dir
 
 
@@ -135,58 +133,3 @@ def maybe_generate_daily_message(
         run_time.astimezone(ZoneInfo(timezone_name)).date().isoformat(),
     )
     return output_path
-
-
-def publish_daily_reports(settings: Settings, target_dir: Path) -> None:
-    reports_dir = target_dir / "reports"
-    reports_dir.mkdir(parents=True, exist_ok=True)
-    source_dir = settings.daily_messages_output
-    report_files = sorted(source_dir.glob("*.txt"), reverse=True) if source_dir.exists() else []
-    for report_file in report_files:
-        shutil.copy2(report_file, reports_dir / report_file.name)
-
-    items = "\n".join(
-        f'          <li class="insight-item"><a href="./{html.escape(report_file.name)}">{html.escape(report_file.name)}</a></li>'
-        for report_file in report_files
-    )
-    empty_state = '        <p class="empty-state">No daily reports generated yet.</p>' if not report_files else ""
-    reports_index = "\n".join(
-        [
-            "<!DOCTYPE html>",
-            '<html lang="en">',
-            "  <head>",
-            '    <meta charset="utf-8" />',
-            '    <meta name="viewport" content="width=device-width, initial-scale=1" />',
-            f"    <title>{html.escape(settings.raw['tournament']['name'])} | Daily Reports</title>",
-            '    <link rel="stylesheet" href="../static/styles.css" />',
-            "  </head>",
-            "  <body>",
-            '    <main class="page-shell">',
-            '      <section class="hero">',
-            '        <div class="hero-copy">',
-            '          <p class="eyebrow">Pearson ELS Sweepstake</p>',
-            "          <h1>Daily Reports</h1>",
-            '          <p class="subcopy">Weekday text summaries generated during the morning refresh window.</p>',
-            "        </div>",
-            '        <nav class="nav-tabs" aria-label="Primary">',
-            '          <a class="nav-tab" href="../">Insights</a>',
-            '          <a class="nav-tab" href="../leaderboard/">Leaderboard</a>',
-            '          <a class="nav-tab is-active" href="./">Reports</a>',
-            "        </nav>",
-            "      </section>",
-            '      <section class="panel insight-panel insight-panel-wide">',
-            '        <div class="section-header">',
-            "          <h2>Available Files</h2>",
-            "        </div>",
-            empty_state,
-            '        <ul class="insight-list">' if report_files else "",
-            items,
-            "        </ul>" if report_files else "",
-            "      </section>",
-            "    </main>",
-            "  </body>",
-            "</html>",
-            "",
-        ]
-    )
-    (reports_dir / "index.html").write_text(reports_index, encoding="utf-8")

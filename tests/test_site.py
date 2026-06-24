@@ -92,8 +92,6 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     index_html = (output_dir / "index.html").read_text(encoding="utf-8")
     leaderboard_html = (output_dir / "leaderboard" / "index.html").read_text(encoding="utf-8")
     daily_message = (tmp_path / "outputs" / "daily_messages" / "2026-06-23.txt").read_text(encoding="utf-8")
-    reports_index = (output_dir / "reports" / "index.html").read_text(encoding="utf-8")
-    published_report = (output_dir / "reports" / "2026-06-23.txt").read_text(encoding="utf-8")
 
     assert "Insights" in index_html
     assert "Leaderboard" in leaderboard_html
@@ -109,9 +107,6 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert 'href="../static/styles.css"' in leaderboard_html
     assert "Tournament win odds" not in leaderboard_html
     assert "Current leader:" in daily_message
-    assert "Daily Reports" in reports_index
-    assert './2026-06-23.txt' in reports_index
-    assert "Current leader:" in published_report
 
 
 def test_build_static_site_can_force_daily_message_outside_refresh_window(tmp_path, monkeypatch):

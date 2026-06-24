@@ -20,3 +20,6 @@ def test_pages_workflow_builds_prod_and_dev_without_overwriting():
     assert 'site_base_path="/dev"' in run_commands
     assert "force_daily_report" in str(workflow["on"]["workflow_dispatch"])
     assert "--force-daily-report" in run_commands
+    assert workflow["permissions"]["contents"] == "write"
+    assert "outputs/daily_messages" in run_commands
+    assert "Update daily reports [skip ci]" in run_commands

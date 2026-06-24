@@ -16,7 +16,7 @@ on:
     - cron: "*/15 * * * *"
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -44,8 +44,8 @@ jobs:
       - name: Prepare branch worktrees
         run: |
           git fetch origin main dev
-          git worktree add .worktrees/main origin/main
-          git worktree add .worktrees/dev origin/dev
+          git worktree add -B main .worktrees/main origin/main
+          git worktree add -B dev .worktrees/dev origin/dev
 
       - name: Build production site from main
         env:
@@ -82,6 +82,28 @@ jobs:
           PY
         env:
           FORCE_DAILY_REPORT: ${{ github.event.inputs.force_daily_report || 'false' }}
+
+      - name: Persist daily reports to branches
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          persist_reports() {
+            branch="$1"
+            worktree=".worktrees/$branch"
+            if [ ! -d "$worktree/outputs/daily_messages" ]; then
+              return
+            fi
+            if [ -z "$(git -C "$worktree" status --porcelain -- outputs/daily_messages)" ]; then
+              return
+            fi
+            git -C "$worktree" add outputs/daily_messages
+            git -C "$worktree" commit -m "Update daily reports [skip ci]"
+            git -C "$worktree" push origin "$branch"
+          }
+
+          persist_reports main
+          persist_reports dev
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
