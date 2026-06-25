@@ -350,6 +350,10 @@ h3 {
   transform: translateY(14px) scale(0.985);
 }
 
+.participant-row.is-closing .team-card:nth-child(2) {
+  transition-delay: 0ms;
+}
+
 .participant-row[open] .team-card:nth-child(2) {
   transition-delay: 70ms;
 }

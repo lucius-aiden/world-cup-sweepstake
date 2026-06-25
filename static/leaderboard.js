@@ -1,7 +1,6 @@
-const CLOSE_DURATION_MS = 320;
-
 for (const row of document.querySelectorAll(".participant-row")) {
   const summary = row.querySelector("summary");
+  const expandShell = row.querySelector(".expand-shell");
   if (!summary) {
     continue;
   }
@@ -14,9 +13,24 @@ for (const row of document.querySelectorAll(".participant-row")) {
     event.preventDefault();
     row.classList.add("is-closing");
 
-    window.setTimeout(() => {
+    if (!expandShell) {
       row.open = false;
       row.classList.remove("is-closing");
-    }, CLOSE_DURATION_MS);
+      return;
+    }
+
+    const finishClosing = (transitionEvent) => {
+      if (
+        transitionEvent.target !== expandShell ||
+        transitionEvent.propertyName !== "grid-template-rows"
+      ) {
+        return;
+      }
+      expandShell.removeEventListener("transitionend", finishClosing);
+      row.open = false;
+      row.classList.remove("is-closing");
+    };
+
+    expandShell.addEventListener("transitionend", finishClosing);
   });
 }
