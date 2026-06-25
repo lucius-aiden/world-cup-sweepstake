@@ -323,4 +323,132 @@ def test_insights_use_recent_top_matches_and_worst_trouble_ordering():
 
     section_map = {section.title: section for section in view.insight_sections}
     assert [item.title for item in section_map["Top Matches"].items] == ["🇧🇷 Brazil", "🇫🇷 France"]
-    assert [item.title for item in section_map["Teams In Trouble"].items] == ["🇵🇦 Panama", "🇯🇵 Japan"]
+    assert [item.title for item in section_map["Teams In Trouble"].items] == ["🇵🇦 Panama — Unassigned", "🇯🇵 Japan — Unassigned"]
+
+
+def test_fixture_day_includes_overnight_kickoffs_until_five_am_bst():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Japan",
+                "home_team_code": "JPN",
+                "away_team": "Mexico",
+                "away_team_code": "MEX",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 6, 25, 1, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "group_name": "GROUP_A",
+            },
+            {
+                "match_id": "2",
+                "home_team": "Norway",
+                "home_team_code": "NOR",
+                "away_team": "Spain",
+                "away_team_code": "ESP",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 6, 25, 5, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "group_name": "GROUP_A",
+            },
+        ],
+        now=datetime(2026, 6, 24, 21, 0, tzinfo=UTC),
+    )
+
+    section_map = {section.title: section for section in view.insight_sections}
+    assert [item.title for item in section_map["Today's Key Fixtures"].items] == ["🇯🇵 Japan vs 🇲🇽 Mexico"]
+
+
+def test_knockout_rankings_only_count_alive_team_points_plus_stage_bonus():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 7, "alive": 0},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+            {"player": "Bob", "team_slot": 1, "team_name": "Germany", "team_code": "GER", "points": 7, "alive": 1},
+            {"player": "Bob", "team_slot": 2, "team_name": "Spain", "team_code": "ESP", "points": 5, "alive": 1},
+            {"player": "Cara", "team_slot": 1, "team_name": "Japan", "team_code": "JPN", "points": 6, "alive": 0},
+            {"player": "Cara", "team_slot": 2, "team_name": "Mexico", "team_code": "MEX", "points": 6, "alive": 0},
+        ],
+        standings_rows=[
+            {"team_code": "BRA", "team_name": "Brazil", "group_name": "Group A", "group_position": 1, "played": 3, "won": 2, "drawn": 1, "lost": 0, "goals_for": 5, "goals_against": 2, "goal_difference": 3, "points": 7, "alive": 0, "qualification_status": "Eliminated"},
+            {"team_code": "FRA", "team_name": "France", "group_name": "Group B", "group_position": 1, "played": 3, "won": 2, "drawn": 0, "lost": 1, "goals_for": 6, "goals_against": 3, "goal_difference": 3, "points": 6, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "GER", "team_name": "Germany", "group_name": "Group C", "group_position": 1, "played": 3, "won": 2, "drawn": 1, "lost": 0, "goals_for": 7, "goals_against": 2, "goal_difference": 5, "points": 7, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "ESP", "team_name": "Spain", "group_name": "Group D", "group_position": 2, "played": 3, "won": 2, "drawn": 0, "lost": 1, "goals_for": 5, "goals_against": 4, "goal_difference": 1, "points": 5, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "JPN", "team_name": "Japan", "group_name": "Group E", "group_position": 3, "played": 3, "won": 1, "drawn": 0, "lost": 2, "goals_for": 3, "goals_against": 4, "goal_difference": -1, "points": 6, "alive": 0, "qualification_status": "Eliminated"},
+            {"team_code": "MEX", "team_name": "Mexico", "group_name": "Group F", "group_position": 3, "played": 3, "won": 1, "drawn": 0, "lost": 2, "goals_for": 2, "goals_against": 5, "goal_difference": -3, "points": 6, "alive": 0, "qualification_status": "Eliminated"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Brazil",
+                "home_team_code": "BRA",
+                "away_team": "Japan",
+                "away_team_code": "JPN",
+                "home_score": 1,
+                "away_score": 2,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 7, 1, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": "AWAY_TEAM",
+            },
+            {
+                "match_id": "2",
+                "home_team": "France",
+                "home_team_code": "FRA",
+                "away_team": "Portugal",
+                "away_team_code": "POR",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 6, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "QUARTER_FINALS",
+            },
+            {
+                "match_id": "3",
+                "home_team": "Germany",
+                "home_team_code": "GER",
+                "away_team": "Italy",
+                "away_team_code": "ITA",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 3, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+            },
+            {
+                "match_id": "4",
+                "home_team": "Spain",
+                "home_team_code": "ESP",
+                "away_team": "Morocco",
+                "away_team_code": "MAR",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 3, 21, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+            },
+        ],
+        now=datetime(2026, 7, 2, 12, 0, tzinfo=UTC),
+    )
+
+    assert [row.player for row in view.leaderboard_rows] == ["Bob", "Alice", "Cara"]
+    assert view.leaderboard_rows[0].total_points == 16
+    assert view.leaderboard_rows[1].total_points == 9
+    assert view.leaderboard_rows[2].total_points == 0
+    assert view.leaderboard_rows[1].team_1.group_label == "Eliminated in Round of 16"
+    assert view.leaderboard_rows[1].team_2.group_label == "Quarter-finals"
+
+    section_map = {section.title: section for section in view.insight_sections}
+    assert section_map["Latest Knockouts"].items[0].title == "🇧🇷 Brazil — Alice"
+    assert section_map["Best Performing Teams"].items[0].title == "🇫🇷 France — Alice"

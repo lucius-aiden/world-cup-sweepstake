@@ -75,6 +75,13 @@ class MatchSummaryView:
 
 
 @dataclass(frozen=True)
+class KnockoutContext:
+    stage_label: str | None
+    advancement_bonus: int
+    latest_elimination_match: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
 class TeamCardView:
     flag: str
     team_name: str
@@ -140,7 +147,6 @@ def build_dashboard_view(
     timezone_name = settings.raw.get("app", {}).get("timezone", "Europe/London")
     display_zone = ZoneInfo(timezone_name)
     generated_at = now or datetime.now(UTC)
-    leaderboard, _ = build_leaderboard(leaderboard_inputs, previous_ranks={})
     standings_rows = standings_rows or []
     matches_rows = matches_rows or []
     odds_by_team = odds_by_team or {}
@@ -148,15 +154,46 @@ def build_dashboard_view(
     standings_by_code = {str(row["team_code"]): dict(row) for row in standings_rows}
     matches_by_code = _group_matches_by_team(matches_rows)
     group_context_by_code = _build_group_context(matches_rows)
+    team_owners = _build_team_owner_map(leaderboard_inputs)
+    knockout_active = _knockout_phase_active(matches_rows)
+    knockout_context_by_code = _build_knockout_context(
+        matches_by_code,
+        standings_by_code,
+        knockout_active,
+    )
+    enriched_inputs = _enrich_leaderboard_inputs(
+        leaderboard_inputs,
+        knockout_context_by_code,
+        knockout_active,
+    )
+    leaderboard, _ = build_leaderboard(enriched_inputs, previous_ranks={})
     grouped_inputs: dict[str, list[dict[str, Any]]] = {}
-    for item in leaderboard_inputs:
+    for item in enriched_inputs:
         grouped_inputs.setdefault(str(item["player"]), []).append(dict(item))
 
     leaderboard_rows: list[ParticipantRowView] = []
     for row in leaderboard:
         teams = sorted(grouped_inputs[row.player], key=lambda item: int(item.get("team_slot", 0)))
-        first = _build_team_card(teams[0], standings_by_code, group_context_by_code, matches_by_code, odds_by_team, display_zone)
-        second = _build_team_card(teams[1], standings_by_code, group_context_by_code, matches_by_code, odds_by_team, display_zone)
+        first = _build_team_card(
+            teams[0],
+            standings_by_code,
+            group_context_by_code,
+            matches_by_code,
+            knockout_context_by_code,
+            odds_by_team,
+            display_zone,
+            knockout_active,
+        )
+        second = _build_team_card(
+            teams[1],
+            standings_by_code,
+            group_context_by_code,
+            matches_by_code,
+            knockout_context_by_code,
+            odds_by_team,
+            display_zone,
+            knockout_active,
+        )
         leaderboard_rows.append(
             ParticipantRowView(
                 rank=row.rank,
@@ -174,7 +211,17 @@ def build_dashboard_view(
     if latest_completed:
         latest_result = _match_scoreline(latest_completed[0])
 
-    insight_sections = _build_insight_sections(matches_rows, standings_rows, group_context_by_code, display_zone, generated_at)
+    insight_sections = _build_insight_sections(
+        matches_rows,
+        standings_rows,
+        group_context_by_code,
+        team_owners,
+        knockout_context_by_code,
+        display_zone,
+        generated_at,
+        fixture_day_ends_hour=getattr(settings, "fixture_day_ends_hour", 5),
+        knockout_active=knockout_active,
+    )
     base_path = _normalize_base_path(site_base_path)
     return DashboardView(
         tournament_name=settings.raw["tournament"]["name"],
@@ -196,6 +243,8 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
         return StatusView(label="Alive", tone="alive")
     qualification = str(standing.get("qualification_status") or "").lower()
     alive = bool(standing.get("alive", 1))
+    if standing.get("knockout_phase"):
+        return StatusView(label="Alive", tone="alive") if alive else StatusView(label="Eliminated", tone="eliminated")
     group_position = _normalized_group_position(standing)
     played = _safe_int(standing.get("played")) or 0
 
@@ -219,7 +268,14 @@ def build_daily_message_context(view: DashboardView) -> DailyMessageContext:
     return DailyMessageContext(
         current_leader=current_leader,
         best_performing_teams=[item.title for item in section_map.get("Best Performing Teams", _empty_section("")).items[:3]],
-        teams_in_trouble=[item.title for item in section_map.get("Teams In Trouble", _empty_section("")).items[:3]],
+        teams_in_trouble=[
+            item.title
+            for item in (
+                section_map.get("Teams In Trouble")
+                or section_map.get("Latest Knockouts")
+                or _empty_section("")
+            ).items[:3]
+        ],
         biggest_team_changes=[item.title for item in section_map.get("Top Matches", _empty_section("")).items[:3]],
         todays_key_fixtures=[item.title for item in section_map.get("Today's Key Fixtures", _empty_section("")).items[:3]],
         leaderboard_url=view.leaderboard_href,
@@ -231,12 +287,15 @@ def _build_team_card(
     standings_by_code: dict[str, dict[str, Any]],
     group_context_by_code: dict[str, dict[str, Any]],
     matches_by_code: dict[str, list[dict[str, Any]]],
+    knockout_context_by_code: dict[str, KnockoutContext],
     odds_by_team: dict[str, TeamOdds],
     display_zone: ZoneInfo,
+    knockout_active: bool,
 ) -> TeamCardView:
     team_code = str(team_input["team_code"])
     standing = standings_by_code.get(team_code)
     context = group_context_by_code.get(team_code, {})
+    knockout_context = knockout_context_by_code.get(team_code)
     team_matches = matches_by_code.get(team_code, [])
     last_match = _last_match(team_matches, display_zone)
     next_match = _next_match(team_matches, display_zone)
@@ -247,10 +306,11 @@ def _build_team_card(
     if context:
         status_context |= context
     status_context["alive"] = team_input.get("alive", 1)
+    status_context["knockout_phase"] = knockout_active
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
         team_name=str(team_input["team_name"]),
-        group_label=_group_label(context or standing),
+        group_label=_group_label(context or standing, knockout_context=knockout_context),
         group_points=int(standing["points"]) if standing else int(team_input.get("points", 0)),
         form=_team_form(team_matches, team_code),
         status=determine_team_status(status_context),
@@ -264,13 +324,18 @@ def _build_insight_sections(
     matches_rows: list[dict[str, Any]],
     standings_rows: list[dict[str, Any]],
     group_context_by_code: dict[str, dict[str, Any]],
+    team_owners: dict[str, list[str]],
+    knockout_context_by_code: dict[str, KnockoutContext],
     display_zone: ZoneInfo,
     generated_at: datetime,
+    *,
+    fixture_day_ends_hour: int,
+    knockout_active: bool,
 ) -> list[InsightSectionView]:
     standings = [dict(row) for row in standings_rows]
     standings = [row | group_context_by_code.get(str(row["team_code"]), {}) for row in standings]
     now_local = generated_at.astimezone(display_zone)
-    today = now_local.date()
+    fixture_window_start, fixture_window_end = _fixture_day_window(now_local, fixture_day_ends_hour)
     recent_window_start = (now_local - timedelta(days=2)).replace(hour=0, minute=0, second=0, microsecond=0)
     completed_recent = [
         match
@@ -278,7 +343,10 @@ def _build_insight_sections(
         if _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone) >= recent_window_start
     ]
     upcoming_today = [
-        match for match in matches_rows if not _is_completed(match) and _parse_match_date(match["match_date"]).astimezone(display_zone).date() == today
+        match
+        for match in matches_rows
+        if not _is_completed(match)
+        and fixture_window_start <= _parse_match_date(match["match_date"]).astimezone(display_zone) < fixture_window_end
     ]
     latest_results = sorted(
         [match for match in matches_rows if _is_completed(match)],
@@ -286,19 +354,31 @@ def _build_insight_sections(
         reverse=True,
     )[:8]
 
-    best_performing = sorted(
-        standings,
-        key=lambda row: (-int(row["points"]), -int(row["goal_difference"]), str(row["team_name"]).lower()),
-    )[:5]
-    teams_in_trouble = sorted(
-        [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
-        key=lambda row: (
-            int(row["points"]),
-            int(row["goal_difference"]),
-            int(row.get("goals_for", 0)),
-            str(row["team_name"]).lower(),
-        ),
-    )[:5]
+    if knockout_active:
+        best_performing = sorted(
+            [row for row in standings if bool(row.get("alive", 1))],
+            key=lambda row: (
+                -knockout_context_by_code.get(str(row["team_code"]), KnockoutContext(None, 0)).advancement_bonus,
+                -int(row["points"]),
+                -int(row["goal_difference"]),
+                str(row["team_name"]).lower(),
+            ),
+        )[:5]
+        latest_knockouts = _latest_knockouts(matches_rows, team_owners, display_zone)[:5]
+    else:
+        best_performing = sorted(
+            standings,
+            key=lambda row: (-int(row["points"]), -int(row["goal_difference"]), str(row["team_name"]).lower()),
+        )[:5]
+        teams_in_trouble = sorted(
+            [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
+            key=lambda row: (
+                int(row["points"]),
+                int(row["goal_difference"]),
+                int(row.get("goals_for", 0)),
+                str(row["team_name"]).lower(),
+            ),
+        )[:5]
     top_match_count = len(upcoming_today) if upcoming_today else 3
     biggest_winners = sorted(
         [match for match in completed_recent if _goal_margin(match) > 0],
@@ -321,7 +401,7 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Today's Key Fixtures",
-            description="Key fixtures are today's remaining scheduled matches, ordered by kickoff time.",
+            description=f"Key fixtures run from {fixture_window_start.strftime('%H:%M %Z')} today through before {fixture_window_end.strftime('%H:%M %Z')} tomorrow, ordered by kickoff time.",
             items=[
                 InsightItemView(
                     title=f'{_flag_for_code(match.get("home_team_code"))} {match["home_team"]} vs {_flag_for_code(match.get("away_team_code"))} {match["away_team"]}',
@@ -333,11 +413,19 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Best Performing Teams",
-            description="Best performing teams are ranked by group points, then goal difference, then goals scored.",
+            description=(
+                "Best performing teams are ranked by deepest secured knockout stage, then group points, then goal difference."
+                if knockout_active
+                else "Best performing teams are ranked by group points, then goal difference, then goals scored."
+            ),
             items=[
                 InsightItemView(
-                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
-                    detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} — {_owner_suffix(team_owners, row.get("team_code"))}',
+                    detail=(
+                        f'{knockout_context_by_code.get(str(row["team_code"]), KnockoutContext("Knockout stage", 0)).stage_label or "Knockout stage"} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}'
+                        if knockout_active
+                        else f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}'
+                    ),
                     tone="qualified",
                 )
                 for row in best_performing
@@ -345,17 +433,25 @@ def _build_insight_sections(
             empty_message="No standings available yet.",
         ),
         InsightSectionView(
-            title="Teams In Trouble",
-            description="Teams in trouble are the bottom sides in each group, ordered by the fewest points then the worst goal difference.",
-            items=[
-                InsightItemView(
-                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]}',
-                    detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
-                    tone=determine_team_status(row).tone,
-                )
-                for row in teams_in_trouble
-            ],
-            empty_message="No teams are in trouble right now.",
+            title="Latest Knockouts" if knockout_active else "Teams In Trouble",
+            description=(
+                "Latest knockouts show the most recent teams eliminated from the tournament."
+                if knockout_active
+                else "Teams in trouble are the bottom sides in each group, ordered by the fewest points then the worst goal difference."
+            ),
+            items=(
+                latest_knockouts
+                if knockout_active
+                else [
+                    InsightItemView(
+                        title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} — {_owner_suffix(team_owners, row.get("team_code"))}',
+                        detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
+                        tone=determine_team_status(row).tone,
+                    )
+                    for row in teams_in_trouble
+                ]
+            ),
+            empty_message="No teams were knocked out recently." if knockout_active else "No teams are in trouble right now.",
         ),
         InsightSectionView(
             title="Latest Results",
@@ -424,7 +520,9 @@ def _group_matches_by_team(matches_rows: list[dict[str, Any]]) -> dict[str, list
     return grouped
 
 
-def _group_label(standing: dict[str, Any] | None) -> str:
+def _group_label(standing: dict[str, Any] | None, *, knockout_context: KnockoutContext | None = None) -> str:
+    if knockout_context and knockout_context.stage_label:
+        return knockout_context.stage_label
     if not standing:
         return "Group position TBD"
     group_name = standing.get("group_name")
@@ -493,6 +591,127 @@ def _build_group_context(matches_rows: list[dict[str, Any]]) -> dict[str, dict[s
     return by_team
 
 
+def _build_team_owner_map(leaderboard_inputs: list[dict[str, Any]]) -> dict[str, list[str]]:
+    owners: dict[str, set[str]] = {}
+    for item in leaderboard_inputs:
+        code = str(item.get("team_code") or "")
+        player = str(item.get("player") or "")
+        if not code or not player:
+            continue
+        owners.setdefault(code, set()).add(player)
+    return {code: sorted(players) for code, players in owners.items()}
+
+
+def _owner_suffix(team_owners: dict[str, list[str]], team_code: Any) -> str:
+    owners = team_owners.get(str(team_code or ""), [])
+    return ", ".join(owners) if owners else "Unassigned"
+
+
+def _knockout_phase_active(matches_rows: list[dict[str, Any]]) -> bool:
+    return any(_is_knockout_stage(match.get("stage")) for match in matches_rows)
+
+
+def _fixture_day_window(now_local: datetime, fixture_day_ends_hour: int) -> tuple[datetime, datetime]:
+    anchor = now_local.replace(hour=fixture_day_ends_hour, minute=0, second=0, microsecond=0)
+    if now_local < anchor:
+        anchor -= timedelta(days=1)
+    return anchor, anchor + timedelta(days=1)
+
+
+def _enrich_leaderboard_inputs(
+    leaderboard_inputs: list[dict[str, Any]],
+    knockout_context_by_code: dict[str, KnockoutContext],
+    knockout_active: bool,
+) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for item in leaderboard_inputs:
+        row = dict(item)
+        alive = bool(row.get("alive", 1))
+        context = knockout_context_by_code.get(str(row.get("team_code") or ""))
+        row["contributing_points"] = int(row.get("points", 0)) if (alive or not knockout_active) else 0
+        row["advancement_bonus"] = context.advancement_bonus if (context and alive and knockout_active) else 0
+        enriched.append(row)
+    return enriched
+
+
+def _build_knockout_context(
+    matches_by_code: dict[str, list[dict[str, Any]]],
+    standings_by_code: dict[str, dict[str, Any]],
+    knockout_active: bool,
+) -> dict[str, KnockoutContext]:
+    if not knockout_active:
+        return {}
+
+    contexts: dict[str, KnockoutContext] = {}
+    for team_code, team_matches in matches_by_code.items():
+        knockout_matches = [match for match in team_matches if _is_knockout_stage(match.get("stage"))]
+        if not knockout_matches:
+            if bool(standings_by_code.get(team_code, {}).get("alive", 1)):
+                contexts[team_code] = KnockoutContext(stage_label="Knockout stage", advancement_bonus=1)
+            continue
+
+        upcoming = [match for match in knockout_matches if not _is_completed(match)]
+        completed = [match for match in knockout_matches if _is_completed(match)]
+        alive = bool(standings_by_code.get(team_code, {}).get("alive", 1))
+
+        if upcoming:
+            next_match = min(upcoming, key=lambda match: str(match["match_date"]))
+            contexts[team_code] = KnockoutContext(
+                stage_label=_stage_label(next_match.get("stage")),
+                advancement_bonus=_stage_bonus(next_match.get("stage")),
+            )
+            continue
+
+        if completed and alive:
+            latest = max(completed, key=lambda match: str(match["match_date"]))
+            if _stage_bonus(latest.get("stage")) >= 5 and _winner_code(latest) == team_code:
+                contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=6)
+            else:
+                contexts[team_code] = KnockoutContext(
+                    stage_label=_next_stage_label(latest.get("stage")),
+                    advancement_bonus=min(_stage_bonus(latest.get("stage")) + 1, 6),
+                )
+            continue
+
+        if completed:
+            latest = max(completed, key=lambda match: str(match["match_date"]))
+            contexts[team_code] = KnockoutContext(
+                stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
+                advancement_bonus=0,
+                latest_elimination_match=latest,
+            )
+            continue
+
+        contexts[team_code] = KnockoutContext(stage_label="Knockout stage", advancement_bonus=1)
+
+    return contexts
+
+
+def _latest_knockouts(
+    matches_rows: list[dict[str, Any]],
+    team_owners: dict[str, list[str]],
+    display_zone: ZoneInfo,
+) -> list[InsightItemView]:
+    items: list[InsightItemView] = []
+    for match in sorted(
+        [row for row in matches_rows if _is_completed(row) and _is_knockout_stage(row.get("stage"))],
+        key=lambda row: str(row["match_date"]),
+        reverse=True,
+    ):
+        loser_code = _loser_code(match)
+        loser_name = _loser_name(match)
+        if not loser_code or not loser_name:
+            continue
+        items.append(
+            InsightItemView(
+                title=f'{_flag_for_code(loser_code)} {loser_name} — {_owner_suffix(team_owners, loser_code)}',
+                detail=f'{_stage_label(match.get("stage"))} · {_match_scoreline(match)} · {_match_time(match, display_zone)}',
+                tone="eliminated",
+            )
+        )
+    return items
+
+
 def _group_row(team_code: str, team_name: str, group_name: str) -> dict[str, Any]:
     return {
         "team_code": team_code,
@@ -525,6 +744,58 @@ def _flag_for_match_team(match: dict[str, Any]) -> str:
     if home_score >= away_score:
         return _flag_for_code(match.get("home_team_code"))
     return _flag_for_code(match.get("away_team_code"))
+
+
+def _is_knockout_stage(stage: Any) -> bool:
+    value = str(stage or "").upper()
+    return bool(value) and "GROUP" not in value and "FIRST_STAGE" not in value and "FIRSTSTAGE" not in value
+
+
+def _stage_bonus(stage: Any) -> int:
+    value = str(stage or "").upper()
+    if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
+        return 5
+    if "SEMI" in value:
+        return 4
+    if "QUARTER" in value:
+        return 3
+    if "16" in value:
+        return 2
+    if "32" in value or "PLAYOFF" in value:
+        return 1
+    return 1 if value else 0
+
+
+def _stage_label(stage: Any) -> str:
+    value = str(stage or "").upper()
+    if "THIRD" in value:
+        return "Third-place playoff"
+    if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
+        return "Final"
+    if "SEMI" in value:
+        return "Semi-finals"
+    if "QUARTER" in value:
+        return "Quarter-finals"
+    if "16" in value:
+        return "Round of 16"
+    if "32" in value or "PLAYOFF" in value:
+        return "Round of 32"
+    return value.replace("_", " ").title() if value else "Knockout stage"
+
+
+def _next_stage_label(stage: Any) -> str:
+    value = str(stage or "").upper()
+    if "32" in value or "PLAYOFF" in value:
+        return "Round of 16"
+    if "16" in value:
+        return "Quarter-finals"
+    if "QUARTER" in value:
+        return "Semi-finals"
+    if "SEMI" in value:
+        return "Final"
+    if "FINAL" in value:
+        return "Champion"
+    return "Knockout stage"
 
 
 def _normalized_group_position(standing: dict[str, Any] | None) -> int | None:
@@ -587,6 +858,43 @@ def _winning_team(match: dict[str, Any]) -> str:
     if home_score >= away_score:
         return str(match["home_team"])
     return str(match["away_team"])
+
+
+def _winner_code(match: dict[str, Any]) -> str | None:
+    winner = str(match.get("winner") or "").upper()
+    if winner == "HOME_TEAM":
+        return str(match.get("home_team_code") or "")
+    if winner == "AWAY_TEAM":
+        return str(match.get("away_team_code") or "")
+    home_score = _safe_int(match.get("home_score")) or 0
+    away_score = _safe_int(match.get("away_score")) or 0
+    if home_score > away_score:
+        return str(match.get("home_team_code") or "")
+    if away_score > home_score:
+        return str(match.get("away_team_code") or "")
+    return None
+
+
+def _loser_code(match: dict[str, Any]) -> str | None:
+    winner_code = _winner_code(match)
+    home_code = str(match.get("home_team_code") or "")
+    away_code = str(match.get("away_team_code") or "")
+    if winner_code == home_code:
+        return away_code
+    if winner_code == away_code:
+        return home_code
+    return None
+
+
+def _loser_name(match: dict[str, Any]) -> str | None:
+    winner_code = _winner_code(match)
+    home_code = str(match.get("home_team_code") or "")
+    away_code = str(match.get("away_team_code") or "")
+    if winner_code == home_code:
+        return str(match.get("away_team") or "")
+    if winner_code == away_code:
+        return str(match.get("home_team") or "")
+    return None
 
 
 def _is_completed(match: dict[str, Any]) -> bool:

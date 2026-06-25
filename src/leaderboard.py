@@ -34,28 +34,42 @@ def build_leaderboard(
         grouped[row["player"]].append(dict(row))
 
     leaderboard: list[LeaderboardRow] = []
+    banked_totals: dict[str, int] = {}
     for player, teams in grouped.items():
         if len(teams) != 2:
             raise ValueError(f"Expected exactly 2 teams for {player}, found {len(teams)}")
         teams = sorted(teams, key=lambda item: int(item.get("team_slot", 0)))
         
         first, second = teams[0], teams[1]
+        first_points = int(first["points"])
+        second_points = int(second["points"])
+        first_score = int(first.get("contributing_points", first_points)) + int(first.get("advancement_bonus", 0))
+        second_score = int(second.get("contributing_points", second_points)) + int(second.get("advancement_bonus", 0))
+        banked_total = first_points + second_points
         leaderboard.append(
             LeaderboardRow(
                 player=player,
                 team_1=first["team_name"],
-                team_1_points=int(first["points"]),
+                team_1_points=first_points,
                 team_1_status=_status_label(bool(first["alive"])),
                 team_2=second["team_name"],
-                team_2_points=int(second["points"]),
+                team_2_points=second_points,
                 team_2_status=_status_label(bool(second["alive"])),
-                total_points=int(first["points"]) + int(second["points"]),
+                total_points=first_score + second_score,
                 teams_alive=int(bool(first["alive"])) + int(bool(second["alive"])),
                 rank=0,
             )
         )
+        banked_totals[player] = banked_total
 
-    leaderboard.sort(key=lambda row: (-row.total_points, -row.teams_alive, row.player.lower()))
+    leaderboard.sort(
+        key=lambda row: (
+            -row.total_points,
+            -row.teams_alive,
+            -banked_totals.get(row.player, row.total_points),
+            row.player.lower(),
+        )
+    )
     ranked_rows: list[LeaderboardRow] = []
     movements: list[MovementRecord] = []
     for index, row in enumerate(leaderboard, start=1):

@@ -77,6 +77,10 @@ class Settings:
         return int(self.raw["job"].get("daily_message_hour", 7))
 
     @property
+    def fixture_day_ends_hour(self) -> int:
+        return int(self.raw["job"].get("fixture_day_ends_hour", 5))
+
+    @property
     def teams_notifier(self) -> str:
         return str(self.raw["teams"]["notifier"])
 
