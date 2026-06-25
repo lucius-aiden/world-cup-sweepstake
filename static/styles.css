@@ -221,12 +221,24 @@ h3 {
 
 .summary-headings {
   margin-bottom: 10px;
-  padding: 0 20px 12px;
+  padding: 0 0 12px;
   color: var(--muted);
   font-family: "Barlow Condensed", sans-serif;
   font-size: 0.95rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.summary-heading-cell {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 20px;
+}
+
+.summary-heading-rank,
+.summary-heading-stat {
+  justify-content: center;
 }
 
 .participant-row summary {
@@ -240,6 +252,10 @@ h3 {
 }
 
 .participant-row[open] summary {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.participant-row.is-closing summary {
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -302,6 +318,10 @@ h3 {
   grid-template-rows: 1fr;
 }
 
+.participant-row.is-closing .expand-shell {
+  grid-template-rows: 0fr;
+}
+
 .expand-shell > * {
   overflow: hidden;
 }
@@ -323,6 +343,11 @@ h3 {
 .participant-row[open] .team-card {
   opacity: 1;
   transform: translateY(0) scale(1);
+}
+
+.participant-row.is-closing .team-card {
+  opacity: 0;
+  transform: translateY(14px) scale(0.985);
 }
 
 .participant-row[open] .team-card:nth-child(2) {
