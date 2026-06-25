@@ -26,7 +26,7 @@ def should_generate_daily_message(
     local_now = now.astimezone(ZoneInfo(timezone_name))
     if local_now.weekday() >= 5:
         return False
-    if local_now.hour != target_hour or local_now.minute >= 15:
+    if local_now.hour < target_hour:
         return False
     return local_now.date().isoformat() != last_generated_for_date
 
