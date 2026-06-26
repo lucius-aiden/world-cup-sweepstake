@@ -55,3 +55,4 @@ job:
   recent_matches_window_days: 7
   top_n_summary: 3
   daily_message_hour: 7
+  fixture_day_ends_hour: 5

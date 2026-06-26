@@ -15,12 +15,17 @@
         <div class="hero-copy">
           <p class="eyebrow">Pearson ELS Sweepstake</p>
           <h1>Leaderboard</h1>
-          <p class="subcopy">Tap a participant to reveal both teams with current group standing, form, match context, and tournament winner odds when available.</p>
+          <p class="subcopy">Tap a participant to open both teams, their current position, recent form, and match context.</p>
         </div>
         <nav class="nav-tabs" aria-label="Primary">
           <a class="nav-tab" href="{{ home_href }}">Insights</a>
           <a class="nav-tab is-active" href="{{ leaderboard_href }}">Leaderboard</a>
         </nav>
+      </section>
+
+      <section class="panel leaderboard-rules" aria-label="Scoring rules">
+        <div class="rules-kicker">How Scoring Works</div>
+        <p class="rules-copy">{{ view.leaderboard_blurb }}</p>
       </section>
 
       <section class="summary-grid">
@@ -81,7 +86,7 @@
 
                 <div class="stat-grid">
                   <div>
-                    <span class="stat-label">Group position</span>
+                    <span class="stat-label">Group / Stage</span>
                     <strong>{{ team.group_label }}</strong>
                   </div>
                   <div>
