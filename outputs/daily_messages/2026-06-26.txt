@@ -1,6 +1,6 @@
-Current leader: Sarah J (16 pts)
+Current leader: Sarah J (18 pts)
 Best performing teams: 🇲🇽 Mexico — Sarah J, 🇧🇷 Brazil — Katy, 🇳🇱 Netherlands — Vito
-Teams in trouble: 🇹🇳 Tunisia — Kylie, 🇺🇿 Uzbekistan — Abhilasha, 🇮🇶 Iraq — Bob
+Teams in trouble: None
 Biggest team changes: 🇲🇦 Morocco, 🇹🇷 Turkey, 🇧🇦 Bosnia-Herzegovina
 Today's key fixtures: 🇳🇴 Norway vs 🇫🇷 France, 🇸🇳 Senegal vs 🇮🇶 Iraq, 🇺🇾 Uruguay vs 🇪🇸 Spain
 Full leaderboard: /dev/leaderboard/
