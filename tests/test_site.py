@@ -106,6 +106,10 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert 'href="./static/styles.css"' in index_html
     assert 'href="../static/styles.css"' in leaderboard_html
     assert 'src="../static/leaderboard.js"' in leaderboard_html
+    assert "How Scoring Works" in leaderboard_html
+    assert "Each participant has two teams." in leaderboard_html
+    assert "10-point bonus for each knockout match they win" in leaderboard_html
+    assert "up to 50 points for the champion" in leaderboard_html
     assert "Tournament win odds" not in leaderboard_html
     assert "Current leader:" in daily_message
 

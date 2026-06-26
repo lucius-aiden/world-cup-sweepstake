@@ -34,7 +34,6 @@ def build_leaderboard(
         grouped[row["player"]].append(dict(row))
 
     leaderboard: list[LeaderboardRow] = []
-    banked_totals: dict[str, int] = {}
     for player, teams in grouped.items():
         if len(teams) != 2:
             raise ValueError(f"Expected exactly 2 teams for {player}, found {len(teams)}")
@@ -45,7 +44,6 @@ def build_leaderboard(
         second_points = int(second["points"])
         first_score = int(first.get("contributing_points", first_points)) + int(first.get("advancement_bonus", 0))
         second_score = int(second.get("contributing_points", second_points)) + int(second.get("advancement_bonus", 0))
-        banked_total = first_points + second_points
         leaderboard.append(
             LeaderboardRow(
                 player=player,
@@ -60,13 +58,11 @@ def build_leaderboard(
                 rank=0,
             )
         )
-        banked_totals[player] = banked_total
 
     leaderboard.sort(
         key=lambda row: (
             -row.total_points,
             -row.teams_alive,
-            -banked_totals.get(row.player, row.total_points),
             row.player.lower(),
         )
     )

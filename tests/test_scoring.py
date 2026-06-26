@@ -38,3 +38,16 @@ def test_leaderboard_uses_knockout_contribution_rules_when_enriched():
 
     assert [row.player for row in leaderboard] == ["Bob", "Alice", "Cara"]
     assert [row.total_points for row in leaderboard] == [16, 9, 0]
+
+
+def test_leaderboard_ties_prefer_more_teams_alive_before_name_order():
+    rows = [
+        {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 5, "alive": 0},
+        {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 5, "alive": 0},
+        {"player": "Bob", "team_slot": 1, "team_name": "Germany", "team_code": "GER", "points": 6, "alive": 1},
+        {"player": "Bob", "team_slot": 2, "team_name": "Spain", "team_code": "ESP", "points": 4, "alive": 0},
+    ]
+
+    leaderboard, _ = build_leaderboard(rows, previous_ranks={})
+
+    assert [row.player for row in leaderboard] == ["Bob", "Alice"]

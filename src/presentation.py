@@ -127,6 +127,7 @@ class DashboardView:
     participants_count: int
     leaderboard_count: int
     latest_result: str
+    leaderboard_blurb: str
     home_href: str
     leaderboard_href: str
     asset_prefix: str
@@ -230,6 +231,7 @@ def build_dashboard_view(
         participants_count=len(leaderboard_rows),
         leaderboard_count=len(leaderboard_rows),
         latest_result=latest_result,
+        leaderboard_blurb=_leaderboard_blurb(),
         home_href=_join_path(base_path, "/"),
         leaderboard_href=_join_path(base_path, "leaderboard/"),
         asset_prefix=_join_path(base_path, "static"),
@@ -244,7 +246,7 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
     qualification = str(standing.get("qualification_status") or "").lower()
     alive = bool(standing.get("alive", 1))
     if standing.get("knockout_phase"):
-        return StatusView(label="Alive", tone="alive") if alive else StatusView(label="Eliminated", tone="eliminated")
+        return StatusView(label="Qualified", tone="qualified") if alive else StatusView(label="Eliminated", tone="eliminated")
     group_position = _normalized_group_position(standing)
     played = _safe_int(standing.get("played")) or 0
 
@@ -306,7 +308,7 @@ def _build_team_card(
     if context:
         status_context |= context
     status_context["alive"] = team_input.get("alive", 1)
-    status_context["knockout_phase"] = knockout_active
+    status_context["knockout_phase"] = knockout_active and knockout_context is not None
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
         team_name=str(team_input["team_name"]),
@@ -353,6 +355,7 @@ def _build_insight_sections(
         key=lambda match: str(match["match_date"]),
         reverse=True,
     )[:8]
+    latest_knockouts: list[InsightItemView] = []
 
     if knockout_active:
         best_performing = sorted(
@@ -365,6 +368,15 @@ def _build_insight_sections(
             ),
         )[:5]
         latest_knockouts = _latest_knockouts(matches_rows, team_owners, display_zone)[:5]
+        teams_in_trouble = sorted(
+            [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
+            key=lambda row: (
+                int(row["points"]),
+                int(row["goal_difference"]),
+                int(row.get("goals_for", 0)),
+                str(row["team_name"]).lower(),
+            ),
+        )[:5]
     else:
         best_performing = sorted(
             standings,
@@ -420,7 +432,7 @@ def _build_insight_sections(
             ),
             items=[
                 InsightItemView(
-                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} — {_owner_suffix(team_owners, row.get("team_code"))}',
+                    title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} {_owner_suffix(team_owners, row.get("team_code"))}',
                     detail=(
                         f'{knockout_context_by_code.get(str(row["team_code"]), KnockoutContext("Knockout stage", 0)).stage_label or "Knockout stage"} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}'
                         if knockout_active
@@ -433,25 +445,25 @@ def _build_insight_sections(
             empty_message="No standings available yet.",
         ),
         InsightSectionView(
-            title="Latest Knockouts" if knockout_active else "Teams In Trouble",
+            title="Latest Knockouts" if latest_knockouts else "Teams In Trouble",
             description=(
                 "Latest knockouts show the most recent teams eliminated from the tournament."
-                if knockout_active
+                if latest_knockouts
                 else "Teams in trouble are the bottom sides in each group, ordered by the fewest points then the worst goal difference."
             ),
             items=(
                 latest_knockouts
-                if knockout_active
+                if latest_knockouts
                 else [
                     InsightItemView(
-                        title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} — {_owner_suffix(team_owners, row.get("team_code"))}',
+                        title=f'{_flag_for_code(row.get("team_code"))} {row["team_name"]} {_owner_suffix(team_owners, row.get("team_code"))}',
                         detail=f'{_group_label(row)} · {int(row["points"])} pts · GD {int(row["goal_difference"]):+d}',
                         tone=determine_team_status(row).tone,
                     )
                     for row in teams_in_trouble
                 ]
             ),
-            empty_message="No teams were knocked out recently." if knockout_active else "No teams are in trouble right now.",
+            empty_message="No teams were knocked out recently." if latest_knockouts else "No teams are in trouble right now.",
         ),
         InsightSectionView(
             title="Latest Results",
@@ -604,7 +616,8 @@ def _build_team_owner_map(leaderboard_inputs: list[dict[str, Any]]) -> dict[str,
 
 def _owner_suffix(team_owners: dict[str, list[str]], team_code: Any) -> str:
     owners = team_owners.get(str(team_code or ""), [])
-    return ", ".join(owners) if owners else "Unassigned"
+    label = ", ".join(owners) if owners else "Unassigned"
+    return f"[{label}]"
 
 
 def _knockout_phase_active(matches_rows: list[dict[str, Any]]) -> bool:
@@ -626,12 +639,20 @@ def _enrich_leaderboard_inputs(
     enriched: list[dict[str, Any]] = []
     for item in leaderboard_inputs:
         row = dict(item)
-        alive = bool(row.get("alive", 1))
         context = knockout_context_by_code.get(str(row.get("team_code") or ""))
-        row["contributing_points"] = int(row.get("points", 0)) if (alive or not knockout_active) else 0
-        row["advancement_bonus"] = context.advancement_bonus if (context and alive and knockout_active) else 0
+        row["contributing_points"] = int(row.get("points", 0))
+        row["advancement_bonus"] = context.advancement_bonus if (context and knockout_active) else 0
         enriched.append(row)
     return enriched
+
+
+def _leaderboard_blurb() -> str:
+    return (
+        "Each participant has two teams. Group-stage matches score 3 points for a win, "
+        "1 for a draw, and 0 for a loss. Once the knockout rounds begin, teams get a "
+        "10-point bonus for each knockout match they win, up to 50 points for the champion. "
+        "Rankings are based on total points, with teams still alive only used to break ties."
+    )
 
 
 def _build_knockout_context(
@@ -646,8 +667,6 @@ def _build_knockout_context(
     for team_code, team_matches in matches_by_code.items():
         knockout_matches = [match for match in team_matches if _is_knockout_stage(match.get("stage"))]
         if not knockout_matches:
-            if bool(standings_by_code.get(team_code, {}).get("alive", 1)):
-                contexts[team_code] = KnockoutContext(stage_label="Knockout stage", advancement_bonus=1)
             continue
 
         upcoming = [match for match in knockout_matches if not _is_completed(match)]
@@ -664,12 +683,12 @@ def _build_knockout_context(
 
         if completed and alive:
             latest = max(completed, key=lambda match: str(match["match_date"]))
-            if _stage_bonus(latest.get("stage")) >= 5 and _winner_code(latest) == team_code:
-                contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=6)
+            if _stage_label(latest.get("stage")) == "Final" and _winner_code(latest) == team_code:
+                contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50)
             else:
                 contexts[team_code] = KnockoutContext(
                     stage_label=_next_stage_label(latest.get("stage")),
-                    advancement_bonus=min(_stage_bonus(latest.get("stage")) + 1, 6),
+                    advancement_bonus=_stage_bonus(_next_stage_label(latest.get("stage"))),
                 )
             continue
 
@@ -677,13 +696,10 @@ def _build_knockout_context(
             latest = max(completed, key=lambda match: str(match["match_date"]))
             contexts[team_code] = KnockoutContext(
                 stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
-                advancement_bonus=0,
+                advancement_bonus=_stage_bonus(latest.get("stage")),
                 latest_elimination_match=latest,
             )
             continue
-
-        contexts[team_code] = KnockoutContext(stage_label="Knockout stage", advancement_bonus=1)
-
     return contexts
 
 
@@ -704,7 +720,7 @@ def _latest_knockouts(
             continue
         items.append(
             InsightItemView(
-                title=f'{_flag_for_code(loser_code)} {loser_name} — {_owner_suffix(team_owners, loser_code)}',
+                title=f'{_flag_for_code(loser_code)} {loser_name} {_owner_suffix(team_owners, loser_code)}',
                 detail=f'{_stage_label(match.get("stage"))} · {_match_scoreline(match)} · {_match_time(match, display_zone)}',
                 tone="eliminated",
             )
@@ -754,16 +770,16 @@ def _is_knockout_stage(stage: Any) -> bool:
 def _stage_bonus(stage: Any) -> int:
     value = str(stage or "").upper()
     if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
-        return 5
+        return 40
     if "SEMI" in value:
-        return 4
+        return 30
     if "QUARTER" in value:
-        return 3
+        return 20
     if "16" in value:
-        return 2
+        return 10
     if "32" in value or "PLAYOFF" in value:
-        return 1
-    return 1 if value else 0
+        return 0
+    return 0
 
 
 def _stage_label(stage: Any) -> str:

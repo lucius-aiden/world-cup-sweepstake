@@ -59,6 +59,32 @@ a {
   max-width: 780px;
 }
 
+.leaderboard-rules {
+  margin: 0 0 24px;
+  padding: 18px 22px 20px;
+  border: 1px solid var(--line-soft);
+  background:
+    linear-gradient(135deg, rgba(244, 198, 41, 0.09), rgba(10, 10, 10, 0.92) 38%),
+    var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.rules-kicker {
+  margin: 0 0 10px;
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.rules-copy {
+  max-width: 960px;
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.6;
+}
+
 .eyebrow,
 h1,
 h2,
@@ -104,7 +130,8 @@ h3 {
 .match-blocks span,
 .empty-state,
 .section-copy,
-.empty-inline {
+.empty-inline,
+.rules-copy {
   color: var(--muted);
 }
 
@@ -309,17 +336,10 @@ h3 {
 }
 
 .expand-shell {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 220ms ease;
-}
-
-.participant-row[open] .expand-shell {
-  grid-template-rows: 1fr;
-}
-
-.participant-row.is-closing .expand-shell {
-  grid-template-rows: 0fr;
+  height: 0;
+  overflow: hidden;
+  transition: height 180ms cubic-bezier(0.24, 0.72, 0.2, 1);
+  will-change: height;
 }
 
 .expand-shell > * {
@@ -336,11 +356,12 @@ h3 {
   opacity: 0;
   transform: translateY(14px) scale(0.985);
   transition:
-    opacity 320ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 320ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    opacity 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.participant-row[open] .team-card {
+.participant-row[open] .team-card,
+.participant-row.is-opening .team-card {
   opacity: 1;
   transform: translateY(0) scale(1);
 }

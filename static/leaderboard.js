@@ -1,36 +1,68 @@
 for (const row of document.querySelectorAll(".participant-row")) {
   const summary = row.querySelector("summary");
   const expandShell = row.querySelector(".expand-shell");
-  if (!summary) {
+  if (!summary || !expandShell) {
     continue;
   }
 
-  summary.addEventListener("click", (event) => {
-    if (!row.open || row.classList.contains("is-closing")) {
-      return;
-    }
+  let isAnimating = false;
 
-    event.preventDefault();
+  const finishAnimation = () => {
+    isAnimating = false;
+    row.classList.remove("is-opening", "is-closing");
+  };
+
+  const animateOpen = () => {
+    isAnimating = true;
+    row.open = true;
+    row.classList.add("is-opening");
+    expandShell.style.height = "0px";
+
+    requestAnimationFrame(() => {
+      expandShell.style.height = `${expandShell.scrollHeight}px`;
+    });
+  };
+
+  const animateClose = () => {
+    isAnimating = true;
     row.classList.add("is-closing");
+    expandShell.style.height = `${expandShell.scrollHeight}px`;
+    expandShell.getBoundingClientRect();
 
-    if (!expandShell) {
-      row.open = false;
-      row.classList.remove("is-closing");
+    requestAnimationFrame(() => {
+      expandShell.style.height = "0px";
+    });
+  };
+
+  expandShell.addEventListener("transitionend", (event) => {
+    if (event.target !== expandShell || event.propertyName !== "height") {
       return;
     }
 
-    const finishClosing = (transitionEvent) => {
-      if (
-        transitionEvent.target !== expandShell ||
-        transitionEvent.propertyName !== "grid-template-rows"
-      ) {
-        return;
-      }
-      expandShell.removeEventListener("transitionend", finishClosing);
-      row.open = false;
-      row.classList.remove("is-closing");
-    };
+    if (row.classList.contains("is-opening")) {
+      expandShell.style.height = "auto";
+      finishAnimation();
+      return;
+    }
 
-    expandShell.addEventListener("transitionend", finishClosing);
+    if (row.classList.contains("is-closing")) {
+      row.open = false;
+      expandShell.style.height = "";
+      finishAnimation();
+    }
+  });
+
+  summary.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (isAnimating) {
+      return;
+    }
+
+    if (row.open) {
+      animateClose();
+      return;
+    }
+
+    animateOpen();
   });
 }
