@@ -510,9 +510,10 @@ def test_knockout_rankings_keep_group_points_and_add_heavy_stage_bonus():
     assert [row.player for row in view.leaderboard_rows] == ["Alice", "Bob", "Cara"]
     assert view.leaderboard_rows[0].total_points == 43
     assert view.leaderboard_rows[1].total_points == 32
-    assert view.leaderboard_rows[2].total_points == 22
+    assert view.leaderboard_rows[2].total_points == 32
     assert view.leaderboard_rows[0].team_1.group_label == "Eliminated in Round of 16"
     assert view.leaderboard_rows[0].team_2.group_label == "Quarter-finals"
+    assert view.leaderboard_rows[2].team_1.group_label == "Quarter-finals"
 
     section_map = {section.title: section for section in view.insight_sections}
     assert section_map["Latest Knockouts"].items[0].title == "🇧🇷 Brazil [Alice]"
@@ -550,6 +551,82 @@ def test_knockout_phase_keeps_teams_in_trouble_until_first_elimination():
     section_map = {section.title: section for section in view.insight_sections}
     assert "Teams In Trouble" in section_map
     assert [item.title for item in section_map["Teams In Trouble"].items] == ["🇵🇦 Panama [Unassigned]"]
+
+
+def test_knockout_loss_overrides_stale_qualified_status_and_best_performing_lists():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "South Africa", "team_code": "RSA", "points": 4, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "Canada", "team_code": "CAN", "points": 7, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "RSA", "team_name": "South Africa", "group_name": "Group B", "group_position": 2, "played": 3, "won": 1, "drawn": 1, "lost": 1, "goals_for": 4, "goals_against": 4, "goal_difference": 0, "points": 4, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "CAN", "team_name": "Canada", "group_name": "Group A", "group_position": 1, "played": 3, "won": 2, "drawn": 1, "lost": 0, "goals_for": 6, "goals_against": 2, "goal_difference": 4, "points": 7, "alive": 1, "qualification_status": "Qualified"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Canada",
+                "home_team_code": "CAN",
+                "away_team": "South Africa",
+                "away_team_code": "RSA",
+                "home_score": 2,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 8, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": "HOME_TEAM",
+            },
+        ],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_1.status.label == "Eliminated"
+    assert row.team_1.group_label == "Eliminated in Round of 16"
+    assert row.teams_alive == 1
+
+    section_map = {section.title: section for section in view.insight_sections}
+    best_titles = [item.title for item in section_map["Best Performing Teams"].items]
+    assert "🇿🇦 South Africa [Alice]" not in best_titles
+    assert best_titles == ["🇨🇦 Canada [Alice]"]
+
+
+def test_dashboard_view_normalizes_provider_team_codes_for_participant_cards():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Celine", "team_slot": 1, "team_name": "Saudi Arabia", "team_code": "KSA", "points": 1, "alive": 1},
+            {"player": "Celine", "team_slot": 2, "team_name": "Haiti", "team_code": "HTI", "points": 1, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "HAI", "team_name": "Haiti", "group_name": "Group F", "group_position": 3, "played": 3, "won": 0, "drawn": 1, "lost": 2, "goals_for": 2, "goals_against": 6, "goal_difference": -4, "points": 1, "alive": 0, "qualification_status": "Eliminated"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Morocco",
+                "home_team_code": "MAR",
+                "away_team": "Haiti",
+                "away_team_code": "HAI",
+                "home_score": 4,
+                "away_score": 2,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 24, 22, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "group_name": "GROUP_F",
+                "winner": "HOME_TEAM",
+            },
+        ],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_2.team_name == "Haiti"
+    assert row.team_2.status.label == "Eliminated"
+    assert row.team_2.group_label.startswith("Group F · ")
+    assert row.team_2.form == ["L"]
+    assert row.team_2.last_match is not None
+    assert row.team_2.last_match.title == "Morocco 4-2 Haiti"
 
 
 def test_team_one_stage_further_always_beats_group_stage_gap():
