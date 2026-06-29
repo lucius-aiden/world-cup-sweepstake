@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from .daily_message import DailyMessageContext
 from .leaderboard import build_leaderboard
 from .models import TeamOdds
+from .team_codes import resolve_team_code
 
 FLAG_OVERRIDES = {
     "ALG": "🇩🇿",
@@ -148,8 +149,8 @@ def build_dashboard_view(
     timezone_name = settings.raw.get("app", {}).get("timezone", "Europe/London")
     display_zone = ZoneInfo(timezone_name)
     generated_at = now or datetime.now(UTC)
-    standings_rows = standings_rows or []
-    matches_rows = matches_rows or []
+    standings_rows = [_normalize_standing_row(dict(row)) for row in (standings_rows or [])]
+    matches_rows = [_normalize_match_row(dict(row)) for row in (matches_rows or [])]
     odds_by_team = odds_by_team or {}
 
     standings_by_code = {str(row["team_code"]): dict(row) for row in standings_rows}
@@ -240,6 +241,17 @@ def build_dashboard_view(
     )
 
 
+def _normalize_standing_row(row: dict[str, Any]) -> dict[str, Any]:
+    row["team_code"] = resolve_team_code(str(row.get("team_name") or ""), row.get("team_code"))
+    return row
+
+
+def _normalize_match_row(row: dict[str, Any]) -> dict[str, Any]:
+    row["home_team_code"] = resolve_team_code(str(row.get("home_team") or ""), row.get("home_team_code"))
+    row["away_team_code"] = resolve_team_code(str(row.get("away_team") or ""), row.get("away_team_code"))
+    return row
+
+
 def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
     if not standing:
         return StatusView(label="Alive", tone="alive")
@@ -307,7 +319,11 @@ def _build_team_card(
         status_context |= standing
     if context:
         status_context |= context
-    status_context["alive"] = team_input.get("alive", 1)
+    status_context["alive"] = _effective_alive(
+        fallback=team_input.get("alive", 1),
+        knockout_context=knockout_context,
+        knockout_active=knockout_active,
+    )
     status_context["knockout_phase"] = knockout_active and knockout_context is not None
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
@@ -359,7 +375,15 @@ def _build_insight_sections(
 
     if knockout_active:
         best_performing = sorted(
-            [row for row in standings if bool(row.get("alive", 1))],
+            [
+                row
+                for row in standings
+                if _effective_alive(
+                    fallback=row.get("alive", 1),
+                    knockout_context=knockout_context_by_code.get(str(row.get("team_code") or "")),
+                    knockout_active=knockout_active,
+                )
+            ],
             key=lambda row: (
                 -knockout_context_by_code.get(str(row["team_code"]), KnockoutContext(None, 0)).advancement_bonus,
                 -int(row["points"]),
@@ -642,6 +666,13 @@ def _enrich_leaderboard_inputs(
         context = knockout_context_by_code.get(str(row.get("team_code") or ""))
         row["contributing_points"] = int(row.get("points", 0))
         row["advancement_bonus"] = context.advancement_bonus if (context and knockout_active) else 0
+        row["alive"] = int(
+            _effective_alive(
+                fallback=row.get("alive", 1),
+                knockout_context=context,
+                knockout_active=knockout_active,
+            )
+        )
         enriched.append(row)
     return enriched
 
@@ -671,8 +702,6 @@ def _build_knockout_context(
 
         upcoming = [match for match in knockout_matches if not _is_completed(match)]
         completed = [match for match in knockout_matches if _is_completed(match)]
-        alive = bool(standings_by_code.get(team_code, {}).get("alive", 1))
-
         if upcoming:
             next_match = min(upcoming, key=lambda match: str(match["match_date"]))
             contexts[team_code] = KnockoutContext(
@@ -681,26 +710,50 @@ def _build_knockout_context(
             )
             continue
 
-        if completed and alive:
+        if completed:
             latest = max(completed, key=lambda match: str(match["match_date"]))
-            if _stage_label(latest.get("stage")) == "Final" and _winner_code(latest) == team_code:
+            winner_code = _winner_code(latest)
+            if _stage_label(latest.get("stage")) == "Final" and winner_code == team_code:
                 contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50)
-            else:
+            elif winner_code == team_code:
                 contexts[team_code] = KnockoutContext(
                     stage_label=_next_stage_label(latest.get("stage")),
                     advancement_bonus=_stage_bonus(_next_stage_label(latest.get("stage"))),
                 )
-            continue
-
-        if completed:
-            latest = max(completed, key=lambda match: str(match["match_date"]))
-            contexts[team_code] = KnockoutContext(
-                stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
-                advancement_bonus=_stage_bonus(latest.get("stage")),
-                latest_elimination_match=latest,
-            )
+            elif winner_code:
+                contexts[team_code] = KnockoutContext(
+                    stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
+                    advancement_bonus=_stage_bonus(latest.get("stage")),
+                    latest_elimination_match=latest,
+                )
+            else:
+                alive = bool(standings_by_code.get(team_code, {}).get("alive", 1))
+                contexts[team_code] = KnockoutContext(
+                    stage_label=(
+                        _next_stage_label(latest.get("stage"))
+                        if alive
+                        else f'Eliminated in {_stage_label(latest.get("stage"))}'
+                    ),
+                    advancement_bonus=(
+                        _stage_bonus(_next_stage_label(latest.get("stage")))
+                        if alive
+                        else _stage_bonus(latest.get("stage"))
+                    ),
+                    latest_elimination_match=None if alive else latest,
+                )
             continue
     return contexts
+
+
+def _effective_alive(
+    *,
+    fallback: Any,
+    knockout_context: KnockoutContext | None,
+    knockout_active: bool,
+) -> bool:
+    if knockout_active and knockout_context is not None:
+        return knockout_context.latest_elimination_match is None
+    return bool(fallback)
 
 
 def _latest_knockouts(
