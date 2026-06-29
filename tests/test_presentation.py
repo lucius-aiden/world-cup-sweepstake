@@ -664,6 +664,41 @@ def test_dashboard_view_normalizes_variant_knockout_team_names_without_provider_
     assert row.teams_alive == 1
 
 
+def test_knockout_active_group_stage_non_qualifiers_show_eliminated_without_knockout_match():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Angela", "team_slot": 1, "team_name": "New Zealand", "team_code": "NZL", "points": 1, "alive": 1},
+            {"player": "Angela", "team_slot": 2, "team_name": "South Korea", "team_code": "KOR", "points": 3, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "NZL", "team_name": "New Zealand", "group_name": "Group G", "group_position": 4, "played": 3, "won": 0, "drawn": 1, "lost": 2, "goals_for": 1, "goals_against": 5, "goal_difference": -4, "points": 1, "alive": 1, "qualification_status": None},
+            {"team_code": "KOR", "team_name": "South Korea", "group_name": "Group A", "group_position": 3, "played": 3, "won": 1, "drawn": 0, "lost": 2, "goals_for": 2, "goals_against": 3, "goal_difference": -1, "points": 3, "alive": 1, "qualification_status": None},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Canada",
+                "home_team_code": "CAN",
+                "away_team": "South Africa",
+                "away_team_code": "RSA",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+        ],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_1.status.label == "Eliminated"
+    assert row.team_2.status.label == "Eliminated"
+    assert row.teams_alive == 0
+    assert row.team_2.group_label == "Group A · 3rd"
+
+
 def test_team_one_stage_further_always_beats_group_stage_gap():
     view = build_dashboard_view(
         settings=StubSettings(),

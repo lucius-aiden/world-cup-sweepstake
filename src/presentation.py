@@ -165,6 +165,7 @@ def build_dashboard_view(
     )
     enriched_inputs = _enrich_leaderboard_inputs(
         leaderboard_inputs,
+        standings_by_code,
         knockout_context_by_code,
         knockout_active,
     )
@@ -257,10 +258,12 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
         return StatusView(label="Alive", tone="alive")
     qualification = str(standing.get("qualification_status") or "").lower()
     alive = bool(standing.get("alive", 1))
-    if standing.get("knockout_phase"):
-        return StatusView(label="Qualified", tone="qualified") if alive else StatusView(label="Eliminated", tone="eliminated")
     group_position = _normalized_group_position(standing)
     played = _safe_int(standing.get("played")) or 0
+    if standing.get("knockout_phase"):
+        return StatusView(label="Qualified", tone="qualified") if alive else StatusView(label="Eliminated", tone="eliminated")
+    if standing.get("knockout_active") and group_position is not None and played >= 3 and group_position > 2:
+        return StatusView(label="Eliminated", tone="eliminated")
 
     if not alive or "eliminated" in qualification:
         return StatusView(label="Eliminated", tone="eliminated")
@@ -321,10 +324,12 @@ def _build_team_card(
         status_context |= context
     status_context["alive"] = _effective_alive(
         fallback=team_input.get("alive", 1),
+        standing=standing,
         knockout_context=knockout_context,
         knockout_active=knockout_active,
     )
     status_context["knockout_phase"] = knockout_active and knockout_context is not None
+    status_context["knockout_active"] = knockout_active
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
         team_name=str(team_input["team_name"]),
@@ -380,6 +385,7 @@ def _build_insight_sections(
                 for row in standings
                 if _effective_alive(
                     fallback=row.get("alive", 1),
+                    standing=row,
                     knockout_context=knockout_context_by_code.get(str(row.get("team_code") or "")),
                     knockout_active=knockout_active,
                 )
@@ -657,18 +663,22 @@ def _fixture_day_window(now_local: datetime, fixture_day_ends_hour: int) -> tupl
 
 def _enrich_leaderboard_inputs(
     leaderboard_inputs: list[dict[str, Any]],
+    standings_by_code: dict[str, dict[str, Any]],
     knockout_context_by_code: dict[str, KnockoutContext],
     knockout_active: bool,
 ) -> list[dict[str, Any]]:
     enriched: list[dict[str, Any]] = []
     for item in leaderboard_inputs:
         row = dict(item)
-        context = knockout_context_by_code.get(str(row.get("team_code") or ""))
+        team_code = str(row.get("team_code") or "")
+        context = knockout_context_by_code.get(team_code)
+        standing = standings_by_code.get(team_code)
         row["contributing_points"] = int(row.get("points", 0))
         row["advancement_bonus"] = context.advancement_bonus if (context and knockout_active) else 0
         row["alive"] = int(
             _effective_alive(
                 fallback=row.get("alive", 1),
+                standing=standing,
                 knockout_context=context,
                 knockout_active=knockout_active,
             )
@@ -748,11 +758,17 @@ def _build_knockout_context(
 def _effective_alive(
     *,
     fallback: Any,
+    standing: dict[str, Any] | None,
     knockout_context: KnockoutContext | None,
     knockout_active: bool,
 ) -> bool:
     if knockout_active and knockout_context is not None:
         return knockout_context.latest_elimination_match is None
+    if knockout_active and standing is not None:
+        group_position = _normalized_group_position(standing)
+        played = _safe_int(standing.get("played")) or 0
+        if group_position is not None and played >= 3 and group_position > 2:
+            return False
     return bool(fallback)
 
 
