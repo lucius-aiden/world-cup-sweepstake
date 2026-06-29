@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import unicodedata
+
 ALIASES = {
     "ALGERIA": "ALG",
     "ARGENTINA": "ARG",
@@ -16,6 +18,7 @@ ALIASES = {
     "COSTARICA": "CRC",
     "CROATIA": "CRO",
     "CURACAO": "CUW",
+    "CURAÇAO": "CUW",
     "CZECHREPUBLIC": "CZE",
     "DENMARK": "DEN",
     "DEMOCRATICREPUBLICOFTHECONGO": "COD",
@@ -37,6 +40,9 @@ ALIASES = {
     "COTEDIVOIRE": "CIV",
     "JAPAN": "JPN",
     "KOREAREPUBLIC": "KOR",
+    "KOREAREP": "KOR",
+    "REPUBLICOFKOREA": "KOR",
+    "ROK": "KOR",
     "SOUTHKOREA": "KOR",
     "MEXICO": "MEX",
     "MOROCCO": "MAR",
@@ -70,7 +76,9 @@ ALIASES = {
 
 
 def canonical_team_key(team_name: str) -> str:
-    return "".join(character for character in team_name.upper() if character.isalnum())
+    normalized = unicodedata.normalize("NFKD", team_name)
+    ascii_friendly = "".join(character for character in normalized if not unicodedata.combining(character))
+    return "".join(character for character in ascii_friendly.upper() if character.isalnum())
 
 
 def resolve_team_code(team_name: str, provider_code: str | None = None) -> str:

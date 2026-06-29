@@ -629,6 +629,41 @@ def test_dashboard_view_normalizes_provider_team_codes_for_participant_cards():
     assert row.team_2.last_match.title == "Morocco 4-2 Haiti"
 
 
+def test_dashboard_view_normalizes_variant_knockout_team_names_without_provider_codes():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Abhilasha", "team_slot": 1, "team_name": "Uzbekistan", "team_code": "UZB", "points": 3, "alive": 1},
+            {"player": "Abhilasha", "team_slot": 2, "team_name": "Turkey", "team_code": "TUR", "points": 3, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "UZB", "team_name": "Uzbekistan", "group_name": "Group H", "group_position": 2, "played": 3, "won": 1, "drawn": 0, "lost": 2, "goals_for": 2, "goals_against": 4, "goal_difference": -2, "points": 3, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "TUR", "team_name": "Turkey", "group_name": "Group G", "group_position": 2, "played": 3, "won": 1, "drawn": 0, "lost": 2, "goals_for": 3, "goals_against": 5, "goal_difference": -2, "points": 3, "alive": 1, "qualification_status": "Qualified"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Uzbekistan",
+                "home_team_code": "",
+                "away_team": "Türkiye",
+                "away_team_code": "",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+        ],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_2.status.label == "Eliminated"
+    assert row.team_2.group_label == "Eliminated in Round of 32"
+    assert row.team_2.group_points == 3
+    assert row.teams_alive == 1
+
+
 def test_team_one_stage_further_always_beats_group_stage_gap():
     view = build_dashboard_view(
         settings=StubSettings(),
