@@ -1,6 +1,6 @@
 Current leader: Katy (31 pts)
 Best performing teams: 🇧🇷 Brazil [Katy], 🇳🇱 Netherlands [Vito], 🇲🇦 Morocco [James]
-Teams in trouble: 🇳🇱 Netherlands [Vito], 🇩🇪 Germany [Sam], 🇯🇵 Japan [Shanika]
-Biggest team changes: 🇵🇾 Paraguay, 🇲🇦 Morocco, 🇨🇩 Congo DR
-Today's key fixtures: 🇨🇮 Ivory Coast vs 🇳🇴 Norway, 🇫🇷 France vs 🇸🇪 Sweden, 🇲🇽 Mexico vs 🇪🇨 Ecuador
+Teams in trouble: 🇨🇮 Ivory Coast [Raquel], 🇳🇱 Netherlands [Vito], 🇩🇪 Germany [Sam]
+Biggest team changes: 🇵🇾 Paraguay, 🇲🇦 Morocco
+Today's key fixtures: 🇫🇷 France vs 🇸🇪 Sweden, 🇲🇽 Mexico vs 🇪🇨 Ecuador
 Full leaderboard: /dev/leaderboard/
