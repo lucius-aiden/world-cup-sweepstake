@@ -125,6 +125,8 @@ def effective_alive(
 ) -> bool:
     if knockout_active and knockout_context is not None:
         return knockout_context.latest_elimination_match is None
+    if knockout_active and standing is None:
+        return False
     if knockout_active and standing is not None:
         qualification = str(standing.get("qualification_status") or "").lower()
         group_position = normalized_group_position(standing)
