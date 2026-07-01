@@ -6,6 +6,19 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .daily_message import DailyMessageContext
+from .leaderboard_state import (
+    KnockoutContext,
+    alive_flag as _alive_flag,
+    build_knockout_context as _build_knockout_context,
+    effective_alive as _effective_alive,
+    enrich_leaderboard_inputs as _enrich_leaderboard_inputs,
+    is_knockout_stage as _is_knockout_stage,
+    knockout_phase_active as _knockout_phase_active,
+    next_stage_label as _next_stage_label,
+    normalized_group_position as _normalized_group_position,
+    stage_bonus as _stage_bonus,
+    winner_code as _winner_code,
+)
 from .leaderboard import build_leaderboard
 from .match_format import format_match_scoreline
 from .models import TeamOdds
@@ -74,13 +87,6 @@ class StatusView:
 class MatchSummaryView:
     title: str
     detail: str
-
-
-@dataclass(frozen=True)
-class KnockoutContext:
-    stage_label: str | None
-    advancement_bonus: int
-    latest_elimination_match: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -166,9 +172,8 @@ def build_dashboard_view(
     )
     enriched_inputs = _enrich_leaderboard_inputs(
         leaderboard_inputs,
-        standings_by_code,
-        knockout_context_by_code,
-        knockout_active,
+        standings_rows,
+        matches_rows,
     )
     leaderboard, _ = build_leaderboard(enriched_inputs, previous_ranks={})
     grouped_inputs: dict[str, list[dict[str, Any]]] = {}
@@ -656,43 +661,11 @@ def _owner_suffix(team_owners: dict[str, list[str]], team_code: Any) -> str:
     label = ", ".join(owners) if owners else "Unassigned"
     return f"[{label}]"
 
-
-def _knockout_phase_active(matches_rows: list[dict[str, Any]]) -> bool:
-    return any(_is_knockout_stage(match.get("stage")) for match in matches_rows)
-
-
 def _fixture_day_window(now_local: datetime, fixture_day_ends_hour: int) -> tuple[datetime, datetime]:
     anchor = now_local.replace(hour=fixture_day_ends_hour, minute=0, second=0, microsecond=0)
     if now_local < anchor:
         anchor -= timedelta(days=1)
     return anchor, anchor + timedelta(days=1)
-
-
-def _enrich_leaderboard_inputs(
-    leaderboard_inputs: list[dict[str, Any]],
-    standings_by_code: dict[str, dict[str, Any]],
-    knockout_context_by_code: dict[str, KnockoutContext],
-    knockout_active: bool,
-) -> list[dict[str, Any]]:
-    enriched: list[dict[str, Any]] = []
-    for item in leaderboard_inputs:
-        row = dict(item)
-        team_code = str(row.get("team_code") or "")
-        context = knockout_context_by_code.get(team_code)
-        standing = standings_by_code.get(team_code)
-        row["contributing_points"] = int(row.get("points", 0))
-        row["advancement_bonus"] = context.advancement_bonus if (context and knockout_active) else 0
-        row["alive"] = int(
-            _effective_alive(
-                fallback=row.get("alive", 1),
-                standing=standing,
-                knockout_context=context,
-                knockout_active=knockout_active,
-            )
-        )
-        enriched.append(row)
-    return enriched
-
 
 def _leaderboard_blurb() -> str:
     return (
@@ -701,83 +674,6 @@ def _leaderboard_blurb() -> str:
         "10-point bonus for each knockout match they win, up to 50 points for the champion. "
         "Rankings are based on total points, with teams still alive only used to break ties."
     )
-
-
-def _build_knockout_context(
-    matches_by_code: dict[str, list[dict[str, Any]]],
-    standings_by_code: dict[str, dict[str, Any]],
-    knockout_active: bool,
-) -> dict[str, KnockoutContext]:
-    if not knockout_active:
-        return {}
-
-    contexts: dict[str, KnockoutContext] = {}
-    for team_code, team_matches in matches_by_code.items():
-        knockout_matches = [match for match in team_matches if _is_knockout_stage(match.get("stage"))]
-        if not knockout_matches:
-            continue
-
-        upcoming = [match for match in knockout_matches if not _is_completed(match)]
-        completed = [match for match in knockout_matches if _is_completed(match)]
-        if upcoming:
-            next_match = min(upcoming, key=lambda match: str(match["match_date"]))
-            contexts[team_code] = KnockoutContext(
-                stage_label=_stage_label(next_match.get("stage")),
-                advancement_bonus=_stage_bonus(next_match.get("stage")),
-            )
-            continue
-
-        if completed:
-            latest = max(completed, key=lambda match: str(match["match_date"]))
-            winner_code = _winner_code(latest)
-            if _stage_label(latest.get("stage")) == "Final" and winner_code == team_code:
-                contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50)
-            elif winner_code == team_code:
-                contexts[team_code] = KnockoutContext(
-                    stage_label=_next_stage_label(latest.get("stage")),
-                    advancement_bonus=_stage_bonus(_next_stage_label(latest.get("stage"))),
-                )
-            elif winner_code:
-                contexts[team_code] = KnockoutContext(
-                    stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
-                    advancement_bonus=_stage_bonus(latest.get("stage")),
-                    latest_elimination_match=latest,
-                )
-            else:
-                alive = _alive_flag(standings_by_code.get(team_code, {}).get("alive", 1))
-                contexts[team_code] = KnockoutContext(
-                    stage_label=(
-                        _next_stage_label(latest.get("stage"))
-                        if alive
-                        else f'Eliminated in {_stage_label(latest.get("stage"))}'
-                    ),
-                    advancement_bonus=(
-                        _stage_bonus(_next_stage_label(latest.get("stage")))
-                        if alive
-                        else _stage_bonus(latest.get("stage"))
-                    ),
-                    latest_elimination_match=None if alive else latest,
-                )
-            continue
-    return contexts
-
-
-def _effective_alive(
-    *,
-    fallback: Any,
-    standing: dict[str, Any] | None,
-    knockout_context: KnockoutContext | None,
-    knockout_active: bool,
-) -> bool:
-    if knockout_active and knockout_context is not None:
-        return knockout_context.latest_elimination_match is None
-    if knockout_active and standing is not None:
-        group_position = _normalized_group_position(standing)
-        played = _safe_int(standing.get("played")) or 0
-        if group_position is not None and played >= 3 and group_position > 2:
-            return False
-    return _alive_flag(fallback)
-
 
 def _latest_knockouts(
     matches_rows: list[dict[str, Any]],
@@ -898,27 +794,6 @@ def _flag_for_match_team(match: dict[str, Any]) -> str:
         return _flag_for_code(match.get("home_team_code"))
     return _flag_for_code(match.get("away_team_code"))
 
-
-def _is_knockout_stage(stage: Any) -> bool:
-    value = str(stage or "").upper()
-    return bool(value) and "GROUP" not in value and "FIRST_STAGE" not in value and "FIRSTSTAGE" not in value
-
-
-def _stage_bonus(stage: Any) -> int:
-    value = str(stage or "").upper()
-    if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
-        return 40
-    if "SEMI" in value:
-        return 30
-    if "QUARTER" in value:
-        return 20
-    if "16" in value:
-        return 10
-    if "32" in value or "PLAYOFF" in value:
-        return 0
-    return 0
-
-
 def _stage_label(stage: Any) -> str:
     value = str(stage or "").upper()
     if "THIRD" in value:
@@ -934,31 +809,6 @@ def _stage_label(stage: Any) -> str:
     if "32" in value or "PLAYOFF" in value:
         return "Round of 32"
     return value.replace("_", " ").title() if value else "Knockout stage"
-
-
-def _next_stage_label(stage: Any) -> str:
-    value = str(stage or "").upper()
-    if "32" in value or "PLAYOFF" in value:
-        return "Round of 16"
-    if "16" in value:
-        return "Quarter-finals"
-    if "QUARTER" in value:
-        return "Semi-finals"
-    if "SEMI" in value:
-        return "Final"
-    if "FINAL" in value:
-        return "Champion"
-    return "Knockout stage"
-
-
-def _normalized_group_position(standing: dict[str, Any] | None) -> int | None:
-    if not standing:
-        return None
-    position = _safe_int(standing.get("group_position"))
-    if position is None or position < 1 or position > 4:
-        return None
-    return position
-
 
 def _ordinal(value: int) -> str:
     if 10 <= value % 100 <= 20:
@@ -1012,22 +862,6 @@ def _winning_team(match: dict[str, Any]) -> str:
         return str(match["home_team"])
     return str(match["away_team"])
 
-
-def _winner_code(match: dict[str, Any]) -> str | None:
-    winner = str(match.get("winner") or "").upper()
-    if winner == "HOME_TEAM":
-        return str(match.get("home_team_code") or "")
-    if winner == "AWAY_TEAM":
-        return str(match.get("away_team_code") or "")
-    home_score = _safe_int(match.get("home_score")) or 0
-    away_score = _safe_int(match.get("away_score")) or 0
-    if home_score > away_score:
-        return str(match.get("home_team_code") or "")
-    if away_score > home_score:
-        return str(match.get("away_team_code") or "")
-    return None
-
-
 def _loser_code(match: dict[str, Any]) -> str | None:
     winner_code = _winner_code(match)
     home_code = str(match.get("home_team_code") or "")
@@ -1058,17 +892,6 @@ def _safe_int(value: Any) -> int | None:
     if value is None:
         return None
     return int(value)
-
-
-def _alive_flag(value: Any) -> bool:
-    if isinstance(value, str):
-        cleaned = value.strip().lower()
-        if cleaned in {"", "0", "false", "no", "n"}:
-            return False
-        if cleaned in {"1", "true", "yes", "y"}:
-            return True
-    return bool(value)
-
 
 def _join_path(base_path: str, suffix: str) -> str:
     base = _normalize_base_path(base_path)

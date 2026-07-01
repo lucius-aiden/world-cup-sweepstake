@@ -1,4 +1,5 @@
 from src.leaderboard import build_leaderboard
+from src.leaderboard_state import enrich_leaderboard_inputs
 
 
 def test_leaderboard_sorting_and_alive_count():
@@ -64,3 +65,38 @@ def test_leaderboard_normalizes_string_alive_flags():
     assert leaderboard[0].team_1_status == "Knocked out"
     assert leaderboard[0].team_2_status == "Still in"
     assert leaderboard[0].teams_alive == 1
+
+
+def test_enrich_leaderboard_inputs_marks_group_non_qualifiers_out_after_knockout():
+    rows = [
+        {"player": "Angela", "team_slot": 1, "team_name": "New Zealand", "team_code": "NZL", "points": 1, "alive": 1},
+        {"player": "Angela", "team_slot": 2, "team_name": "South Korea", "team_code": "KOR", "points": 3, "alive": 1},
+    ]
+    standings_rows = [
+        {"team_code": "NZL", "team_name": "New Zealand", "group_name": "Group G", "group_position": 4, "played": 3, "points": 1, "alive": 1, "qualification_status": None},
+        {"team_code": "KOR", "team_name": "South Korea", "group_name": "Group A", "group_position": 3, "played": 3, "points": 3, "alive": 1, "qualification_status": None},
+    ]
+    matches_rows = [
+        {
+            "match_id": "1",
+            "home_team": "Canada",
+            "home_team_code": "CAN",
+            "away_team": "South Africa",
+            "away_team_code": "RSA",
+            "home_score": 1,
+            "away_score": 0,
+            "status": "FINISHED",
+            "match_date": "2026-06-29T12:00:00+00:00",
+            "stage": "LAST_32",
+            "winner": "HOME_TEAM",
+        },
+    ]
+
+    leaderboard, _ = build_leaderboard(
+        enrich_leaderboard_inputs(rows, standings_rows, matches_rows),
+        previous_ranks={},
+    )
+
+    assert leaderboard[0].team_1_status == "Knocked out"
+    assert leaderboard[0].team_2_status == "Knocked out"
+    assert leaderboard[0].teams_alive == 0
