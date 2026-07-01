@@ -776,6 +776,75 @@ def test_knockout_active_group_stage_non_qualifiers_show_eliminated_without_knoc
     assert section_map["Latest Knockouts"].items[1].title == "🇳🇿 New Zealand [Angela]"
 
 
+def test_draw_view_builds_rounds_and_marks_winners_and_eliminations():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Bob", "team_slot": 1, "team_name": "Belgium", "team_code": "BEL", "points": 2, "alive": 1},
+            {"player": "Bob", "team_slot": 2, "team_name": "Iraq", "team_code": "IRQ", "points": 1, "alive": 1},
+            {"player": "Alice", "team_slot": 1, "team_name": "Canada", "team_code": "CAN", "points": 7, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "South Africa", "team_code": "RSA", "points": 4, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "BEL", "team_name": "Belgium", "group_name": "Group X", "group_position": 3, "played": 3, "won": 0, "drawn": 1, "lost": 2, "goals_for": 1, "goals_against": 3, "goal_difference": -2, "points": 1, "alive": 1, "qualification_status": None},
+            {"team_code": "IRQ", "team_name": "Iraq", "group_name": "Group X", "group_position": 4, "played": 3, "won": 0, "drawn": 1, "lost": 2, "goals_for": 1, "goals_against": 4, "goal_difference": -3, "points": 1, "alive": 1, "qualification_status": None},
+            {"team_code": "CAN", "team_name": "Canada", "group_name": "Group X", "group_position": 1, "played": 3, "won": 3, "drawn": 0, "lost": 0, "goals_for": 6, "goals_against": 1, "goal_difference": 5, "points": 9, "alive": 1, "qualification_status": "Qualified"},
+            {"team_code": "RSA", "team_name": "South Africa", "group_name": "Group X", "group_position": 2, "played": 3, "won": 1, "drawn": 1, "lost": 1, "goals_for": 4, "goals_against": 4, "goal_difference": 0, "points": 4, "alive": 1, "qualification_status": "Qualified"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Canada",
+                "home_team_code": "CAN",
+                "away_team": "South Africa",
+                "away_team_code": "RSA",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "2",
+                "home_team": "Belgium",
+                "home_team_code": "BEL",
+                "away_team": "Iraq",
+                "away_team_code": "IRQ",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 1, 17, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": None,
+            },
+        ],
+    )
+
+    assert [round_view.title for round_view in view.draw_rounds] == ["Round of 32", "Round of 16"]
+    first_match = view.draw_rounds[0].matches[0]
+    assert first_match.home_team.won is True
+    assert first_match.away_team.eliminated is True
+    assert first_match.home_team.owner_label == "Alice"
+    second_match = view.draw_rounds[1].matches[0]
+    assert second_match.home_team.team_name == "Belgium"
+    assert second_match.away_team.team_name == "Iraq"
+
+
+def test_draw_href_is_exposed_in_dashboard_view():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[],
+    )
+
+    assert view.draw_href == "/draw/"
+
+
 def test_team_one_stage_further_always_beats_group_stage_gap():
     view = build_dashboard_view(
         settings=StubSettings(),
