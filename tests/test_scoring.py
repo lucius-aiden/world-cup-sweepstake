@@ -100,3 +100,34 @@ def test_enrich_leaderboard_inputs_marks_group_non_qualifiers_out_after_knockout
     assert leaderboard[0].team_1_status == "Knocked out"
     assert leaderboard[0].team_2_status == "Knocked out"
     assert leaderboard[0].teams_alive == 0
+
+
+def test_enrich_leaderboard_inputs_marks_missing_standings_teams_out_after_knockout():
+    rows = [
+        {"player": "Catriona", "team_slot": 1, "team_name": "Iran", "team_code": "IRN", "points": 3, "alive": 1},
+        {"player": "Catriona", "team_slot": 2, "team_name": "Qatar", "team_code": "QAT", "points": 1, "alive": 1},
+    ]
+    matches_rows = [
+        {
+            "match_id": "1",
+            "home_team": "Canada",
+            "home_team_code": "CAN",
+            "away_team": "South Africa",
+            "away_team_code": "RSA",
+            "home_score": 1,
+            "away_score": 0,
+            "status": "FINISHED",
+            "match_date": "2026-06-29T12:00:00+00:00",
+            "stage": "LAST_32",
+            "winner": "HOME_TEAM",
+        },
+    ]
+
+    leaderboard, _ = build_leaderboard(
+        enrich_leaderboard_inputs(rows, standings_rows=[], matches_rows=matches_rows),
+        previous_ranks={},
+    )
+
+    assert leaderboard[0].team_1_status == "Knocked out"
+    assert leaderboard[0].team_2_status == "Knocked out"
+    assert leaderboard[0].teams_alive == 0
