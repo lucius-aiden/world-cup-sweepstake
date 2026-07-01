@@ -208,11 +208,12 @@ def build_dashboard_view(
                 rank=row.rank,
                 player=row.player,
                 total_points=row.total_points,
-                teams_alive=row.teams_alive,
+                teams_alive=int(_status_counts_as_alive(first.status)) + int(_status_counts_as_alive(second.status)),
                 team_1=first,
                 team_2=second,
             )
         )
+    leaderboard_rows = _rank_participant_rows(leaderboard_rows)
 
     latest_completed = [match for match in matches_rows if _is_completed(match)]
     latest_completed.sort(key=lambda match: str(match["match_date"]), reverse=True)
@@ -912,3 +913,29 @@ def _normalize_base_path(base_path: str) -> str:
 
 def _empty_section(title: str) -> InsightSectionView:
     return InsightSectionView(title=title, description="", items=[], empty_message="")
+
+
+def _status_counts_as_alive(status: StatusView) -> bool:
+    return status.label != "Eliminated"
+
+
+def _rank_participant_rows(rows: list[ParticipantRowView]) -> list[ParticipantRowView]:
+    ordered = sorted(
+        rows,
+        key=lambda row: (
+            -row.total_points,
+            -row.teams_alive,
+            row.player.lower(),
+        ),
+    )
+    return [
+        ParticipantRowView(
+            rank=index,
+            player=row.player,
+            total_points=row.total_points,
+            teams_alive=row.teams_alive,
+            team_1=row.team_1,
+            team_2=row.team_2,
+        )
+        for index, row in enumerate(ordered, start=1)
+    ]
