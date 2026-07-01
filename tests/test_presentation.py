@@ -152,6 +152,79 @@ def test_dashboard_view_hides_out_of_range_group_positions():
     assert row.team_1.status.label == "Alive"
 
 
+def test_dashboard_view_formats_penalty_shootouts_without_looking_like_goal_fests():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "England", "team_code": "ENG", "points": 4, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "Japan", "team_code": "JPN", "points": 4, "alive": 0},
+        ],
+        standings_rows=[
+            {
+                "team_code": "ENG",
+                "team_name": "England",
+                "group_name": "Group A",
+                "group_position": 1,
+                "played": 3,
+                "won": 2,
+                "drawn": 1,
+                "lost": 0,
+                "goals_for": 5,
+                "goals_against": 2,
+                "goal_difference": 3,
+                "points": 7,
+                "alive": 1,
+                "qualification_status": "Qualified",
+            },
+            {
+                "team_code": "JPN",
+                "team_name": "Japan",
+                "group_name": "Group B",
+                "group_position": 2,
+                "played": 3,
+                "won": 1,
+                "drawn": 1,
+                "lost": 1,
+                "goals_for": 3,
+                "goals_against": 3,
+                "goal_difference": 0,
+                "points": 4,
+                "alive": 0,
+                "qualification_status": "Eliminated",
+            },
+        ],
+        matches_rows=[
+            {
+                "match_id": "77",
+                "home_team": "England",
+                "home_team_code": "ENG",
+                "away_team": "Japan",
+                "away_team_code": "JPN",
+                "home_score": 5,
+                "away_score": 4,
+                "regular_home_score": 1,
+                "regular_away_score": 1,
+                "extra_home_score": 0,
+                "extra_away_score": 0,
+                "penalty_home_score": 4,
+                "penalty_away_score": 3,
+                "score_duration": "PENALTY_SHOOTOUT",
+                "status": "PEN",
+                "match_date": datetime(2026, 7, 4, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "QUARTER_FINALS",
+                "winner": "HOME_TEAM",
+            },
+        ],
+        now=datetime(2026, 7, 5, 7, 0, tzinfo=UTC),
+    )
+
+    assert view.latest_result == "England 1-1 Japan (pens 4-3)"
+    assert view.leaderboard_rows[0].team_1.last_match is not None
+    assert view.leaderboard_rows[0].team_1.last_match.title == "England 1-1 Japan (pens 4-3)"
+    section_map = {section.title: section for section in view.insight_sections}
+    assert section_map["Latest Knockouts"].items[0].detail.startswith("Quarter-finals · England 1-1 Japan (pens 4-3)")
+
+
 def test_qualified_group_team_keeps_group_label_until_knockout_match_exists():
     view = build_dashboard_view(
         settings=StubSettings(),
@@ -697,6 +770,10 @@ def test_knockout_active_group_stage_non_qualifiers_show_eliminated_without_knoc
     assert row.team_2.status.label == "Eliminated"
     assert row.teams_alive == 0
     assert row.team_2.group_label == "Group A · 3rd"
+
+    section_map = {section.title: section for section in view.insight_sections}
+    assert section_map["Latest Knockouts"].items[0].title == "🇰🇷 South Korea [Angela]"
+    assert section_map["Latest Knockouts"].items[1].title == "🇳🇿 New Zealand [Angela]"
 
 
 def test_team_one_stage_further_always_beats_group_stage_gap():

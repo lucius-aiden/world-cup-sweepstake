@@ -6,6 +6,7 @@ from typing import Protocol
 import requests
 
 from .configuration import Settings
+from .match_format import format_match_scoreline
 from .models import LeaderboardRow, Match, MovementRecord
 
 LOGGER = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ def render_message(
     top_n_summary: int,
 ) -> str:
     header = "🏁 FULL TIME"
-    score_line = f"{match.home_team} {match.home_score}-{match.away_score} {match.away_team}"
+    score_line = format_match_scoreline(match)
     affected_lines = ["🎯 Affected players"]
     if affected_players:
         for record in affected_players:

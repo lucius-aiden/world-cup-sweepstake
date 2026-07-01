@@ -26,6 +26,13 @@ class Match:
     stage: Optional[str] = None
     group: Optional[str] = None
     winner: Optional[str] = None
+    score_duration: Optional[str] = None
+    regular_home_score: Optional[int] = None
+    regular_away_score: Optional[int] = None
+    extra_home_score: Optional[int] = None
+    extra_away_score: Optional[int] = None
+    penalty_home_score: Optional[int] = None
+    penalty_away_score: Optional[int] = None
 
 
 @dataclass(frozen=True)

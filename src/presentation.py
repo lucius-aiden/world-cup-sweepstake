@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 
 from .daily_message import DailyMessageContext
 from .leaderboard import build_leaderboard
+from .match_format import format_match_scoreline
 from .models import TeamOdds
 from .team_codes import resolve_team_code
 
@@ -257,7 +258,7 @@ def determine_team_status(standing: dict[str, Any] | None) -> StatusView:
     if not standing:
         return StatusView(label="Alive", tone="alive")
     qualification = str(standing.get("qualification_status") or "").lower()
-    alive = bool(standing.get("alive", 1))
+    alive = _alive_flag(standing.get("alive", 1))
     group_position = _normalized_group_position(standing)
     played = _safe_int(standing.get("played")) or 0
     if standing.get("knockout_phase"):
@@ -397,7 +398,13 @@ def _build_insight_sections(
                 str(row["team_name"]).lower(),
             ),
         )[:5]
-        latest_knockouts = _latest_knockouts(matches_rows, team_owners, display_zone)[:5]
+        latest_knockouts = _latest_knockouts(
+            matches_rows,
+            standings_rows,
+            team_owners,
+            knockout_context_by_code,
+            display_zone,
+        )[:5]
         teams_in_trouble = sorted(
             [row for row in standings if determine_team_status(row).label in {"At Risk", "Eliminated"}],
             key=lambda row: (
@@ -737,7 +744,7 @@ def _build_knockout_context(
                     latest_elimination_match=latest,
                 )
             else:
-                alive = bool(standings_by_code.get(team_code, {}).get("alive", 1))
+                alive = _alive_flag(standings_by_code.get(team_code, {}).get("alive", 1))
                 contexts[team_code] = KnockoutContext(
                     stage_label=(
                         _next_stage_label(latest.get("stage"))
@@ -769,15 +776,18 @@ def _effective_alive(
         played = _safe_int(standing.get("played")) or 0
         if group_position is not None and played >= 3 and group_position > 2:
             return False
-    return bool(fallback)
+    return _alive_flag(fallback)
 
 
 def _latest_knockouts(
     matches_rows: list[dict[str, Any]],
+    standings_rows: list[dict[str, Any]],
     team_owners: dict[str, list[str]],
+    knockout_context_by_code: dict[str, KnockoutContext],
     display_zone: ZoneInfo,
 ) -> list[InsightItemView]:
-    items: list[InsightItemView] = []
+    items: list[tuple[tuple[datetime, int, int, str], InsightItemView]] = []
+    seen_codes: set[str] = set()
     for match in sorted(
         [row for row in matches_rows if _is_completed(row) and _is_knockout_stage(row.get("stage"))],
         key=lambda row: str(row["match_date"]),
@@ -787,14 +797,72 @@ def _latest_knockouts(
         loser_name = _loser_name(match)
         if not loser_code or not loser_name:
             continue
+        if not team_owners.get(loser_code):
+            continue
+        seen_codes.add(loser_code)
         items.append(
-            InsightItemView(
-                title=f'{_flag_for_code(loser_code)} {loser_name} {_owner_suffix(team_owners, loser_code)}',
-                detail=f'{_stage_label(match.get("stage"))} · {_match_scoreline(match)} · {_match_time(match, display_zone)}',
-                tone="eliminated",
+            (
+                (
+                    _parse_match_date(match["match_date"]),
+                    -1,
+                    -1,
+                    str(loser_name).lower(),
+                ),
+                InsightItemView(
+                    title=f'{_flag_for_code(loser_code)} {loser_name} {_owner_suffix(team_owners, loser_code)}',
+                    detail=f'{_stage_label(match.get("stage"))} · {_match_scoreline(match)} · {_match_time(match, display_zone)}',
+                    tone="eliminated",
+                ),
             )
         )
-    return items
+
+    matches_by_code = _group_matches_by_team(matches_rows)
+    for standing in standings_rows:
+        team_code = str(standing.get("team_code") or "")
+        if not team_code or team_code in seen_codes:
+            continue
+        if not team_owners.get(team_code):
+            continue
+        if _effective_alive(
+            fallback=standing.get("alive", 1),
+            standing=standing,
+            knockout_context=knockout_context_by_code.get(team_code),
+            knockout_active=True,
+        ):
+            continue
+        if knockout_context_by_code.get(team_code) is not None:
+            continue
+        team_name = str(standing.get("team_name") or team_code)
+        team_matches = [match for match in matches_by_code.get(team_code, []) if _is_completed(match)]
+        if team_matches:
+            latest_match = max(team_matches, key=lambda match: str(match["match_date"]))
+            eliminated_sort_key = (
+                _parse_match_date(latest_match["match_date"]),
+                _safe_int(standing.get("points")) or 0,
+                -(_normalized_group_position(standing) or 99),
+                team_name.lower(),
+            )
+            detail = f'{_group_label(standing)} · Eliminated after group stage · {_match_time(latest_match, display_zone)}'
+        else:
+            eliminated_sort_key = (
+                datetime.min.replace(tzinfo=UTC),
+                _safe_int(standing.get("points")) or 0,
+                -(_normalized_group_position(standing) or 99),
+                team_name.lower(),
+            )
+            detail = f'{_group_label(standing)} · Eliminated after group stage'
+        items.append(
+            (
+                eliminated_sort_key,
+                InsightItemView(
+                    title=f'{_flag_for_code(team_code)} {team_name} {_owner_suffix(team_owners, team_code)}',
+                    detail=detail,
+                    tone="eliminated",
+                ),
+            )
+        )
+    items.sort(key=lambda item: item[0], reverse=True)
+    return [item for _, item in items]
 
 
 def _group_row(team_code: str, team_name: str, group_name: str) -> dict[str, Any]:
@@ -899,7 +967,7 @@ def _ordinal(value: int) -> str:
 
 
 def _match_scoreline(match: dict[str, Any]) -> str:
-    return f'{match["home_team"]} {_safe_int(match.get("home_score"))}-{_safe_int(match.get("away_score"))} {match["away_team"]}'
+    return format_match_scoreline(match)
 
 
 def _match_meta(match: dict[str, Any], display_zone: ZoneInfo) -> str:
@@ -990,6 +1058,16 @@ def _safe_int(value: Any) -> int | None:
     if value is None:
         return None
     return int(value)
+
+
+def _alive_flag(value: Any) -> bool:
+    if isinstance(value, str):
+        cleaned = value.strip().lower()
+        if cleaned in {"", "0", "false", "no", "n"}:
+            return False
+        if cleaned in {"1", "true", "yes", "y"}:
+            return True
+    return bool(value)
 
 
 def _join_path(base_path: str, suffix: str) -> str:

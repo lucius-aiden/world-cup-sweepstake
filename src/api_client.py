@@ -95,6 +95,9 @@ class FootballDataOrgProvider(FootballDataProvider):
     def _to_match(self, item: dict) -> Match:
         score = item.get("score", {})
         full_time = score.get("fullTime", {})
+        regular_time = score.get("regularTime", {})
+        extra_time = score.get("extraTime", {})
+        penalties = score.get("penalties", {})
         winner = score.get("winner")
         return Match(
             match_id=str(item["id"]),
@@ -109,6 +112,13 @@ class FootballDataOrgProvider(FootballDataProvider):
             stage=item.get("stage"),
             group=item.get("group"),
             winner=winner,
+            score_duration=score.get("duration"),
+            regular_home_score=regular_time.get("home") if "home" in regular_time else regular_time.get("homeTeam"),
+            regular_away_score=regular_time.get("away") if "away" in regular_time else regular_time.get("awayTeam"),
+            extra_home_score=extra_time.get("home") if "home" in extra_time else extra_time.get("homeTeam"),
+            extra_away_score=extra_time.get("away") if "away" in extra_time else extra_time.get("awayTeam"),
+            penalty_home_score=penalties.get("home") if "home" in penalties else penalties.get("homeTeam"),
+            penalty_away_score=penalties.get("away") if "away" in penalties else penalties.get("awayTeam"),
         )
 
     def _infer_alive(self, entry: dict) -> bool:
