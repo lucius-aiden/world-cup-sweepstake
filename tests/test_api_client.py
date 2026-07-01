@@ -103,3 +103,67 @@ def test_fetch_standings_prefers_group_tables_over_overall_table(monkeypatch, tm
 
     assert standings[0].group_name == "Group A"
     assert standings[0].group_position == 1
+
+
+def test_fetch_played_matches_preserves_penalty_shootout_breakdown(monkeypatch, tmp_path):
+    settings = Settings(
+        raw={
+            "app": {"name": "world-cup-sweepstake"},
+            "tournament": {"name": "FIFA World Cup 2026", "competition_code": "WC", "season": 2026},
+            "football_api": {
+                "provider": "football_data",
+                "base_url": "https://example.com",
+                "api_key_env": "FOOTBALL_DATA_API_KEY",
+                "timeout_seconds": 30,
+            },
+            "storage": {
+                "database_path": "data/test.db",
+                "participants_csv": "config/participants.csv",
+                "leaderboard_output": "output/leaderboard.xlsx",
+                "site_output": "site",
+            },
+            "teams": {"notifier": "console"},
+            "job": {},
+        },
+        root_dir=tmp_path,
+    )
+    provider = FootballDataOrgProvider.__new__(FootballDataOrgProvider)
+    provider.settings = settings
+    provider.base_url = "https://example.com"
+    provider.session = None
+    monkeypatch.setattr(
+        provider,
+        "_get",
+        lambda path, params=None: {
+            "matches": [
+                {
+                    "id": 7,
+                    "homeTeam": {"name": "England", "tla": "ENG"},
+                    "awayTeam": {"name": "Japan", "tla": "JPN"},
+                    "utcDate": "2026-07-04T18:00:00Z",
+                    "status": "PEN",
+                    "stage": "QUARTER_FINALS",
+                    "group": None,
+                    "score": {
+                        "winner": "HOME_TEAM",
+                        "duration": "PENALTY_SHOOTOUT",
+                        "fullTime": {"home": 5, "away": 4},
+                        "regularTime": {"home": 1, "away": 1},
+                        "extraTime": {"home": 0, "away": 0},
+                        "penalties": {"home": 4, "away": 3},
+                    },
+                }
+            ]
+        },
+    )
+
+    matches = provider.fetch_played_matches()
+
+    assert len(matches) == 1
+    assert matches[0].score_duration == "PENALTY_SHOOTOUT"
+    assert matches[0].regular_home_score == 1
+    assert matches[0].regular_away_score == 1
+    assert matches[0].extra_home_score == 0
+    assert matches[0].extra_away_score == 0
+    assert matches[0].penalty_home_score == 4
+    assert matches[0].penalty_away_score == 3

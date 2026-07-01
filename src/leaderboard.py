@@ -49,12 +49,12 @@ def build_leaderboard(
                 player=player,
                 team_1=first["team_name"],
                 team_1_points=first_points,
-                team_1_status=_status_label(bool(first["alive"])),
+                team_1_status=_status_label(_alive_flag(first.get("alive", 0))),
                 team_2=second["team_name"],
                 team_2_points=second_points,
-                team_2_status=_status_label(bool(second["alive"])),
+                team_2_status=_status_label(_alive_flag(second.get("alive", 0))),
                 total_points=first_score + second_score,
-                teams_alive=int(bool(first["alive"])) + int(bool(second["alive"])),
+                teams_alive=int(_alive_flag(first.get("alive", 0))) + int(_alive_flag(second.get("alive", 0))),
                 rank=0,
             )
         )
@@ -150,6 +150,16 @@ def write_workbook(leaderboard: list[LeaderboardRow], output_path: Path) -> None
 
 def _status_label(alive: bool) -> str:
     return "Still in" if alive else "Knocked out"
+
+
+def _alive_flag(value: object) -> bool:
+    if isinstance(value, str):
+        cleaned = value.strip().lower()
+        if cleaned in {"", "0", "false", "no", "n"}:
+            return False
+        if cleaned in {"1", "true", "yes", "y"}:
+            return True
+    return bool(value)
 
 
 def _apply_status_fill(cell, value: str) -> None:

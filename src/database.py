@@ -35,6 +35,13 @@ SCHEMA_STATEMENTS = [
         away_team_code TEXT,
         home_score INTEGER,
         away_score INTEGER,
+        score_duration TEXT,
+        regular_home_score INTEGER,
+        regular_away_score INTEGER,
+        extra_home_score INTEGER,
+        extra_away_score INTEGER,
+        penalty_home_score INTEGER,
+        penalty_away_score INTEGER,
         status TEXT NOT NULL,
         match_date TEXT NOT NULL,
         posted_to_teams INTEGER NOT NULL DEFAULT 0,
@@ -111,6 +118,20 @@ def migrate(connection: sqlite3.Connection) -> None:
             connection.execute("ALTER TABLE matches ADD COLUMN away_team_code TEXT")
         if "group_name" not in match_columns:
             connection.execute("ALTER TABLE matches ADD COLUMN group_name TEXT")
+        if "score_duration" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN score_duration TEXT")
+        if "regular_home_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN regular_home_score INTEGER")
+        if "regular_away_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN regular_away_score INTEGER")
+        if "extra_home_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN extra_home_score INTEGER")
+        if "extra_away_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN extra_away_score INTEGER")
+        if "penalty_home_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN penalty_home_score INTEGER")
+        if "penalty_away_score" not in match_columns:
+            connection.execute("ALTER TABLE matches ADD COLUMN penalty_away_score INTEGER")
         standing_columns = {
             row["name"]
             for row in connection.execute("PRAGMA table_info(team_standings)").fetchall()
@@ -164,8 +185,9 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                 """
                 INSERT INTO matches(
                     match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score,
-                    status, match_date, stage, group_name, winner
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    score_duration, regular_home_score, regular_away_score, extra_home_score, extra_away_score,
+                    penalty_home_score, penalty_away_score, status, match_date, stage, group_name, winner
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(match_id) DO UPDATE SET
                     home_team=excluded.home_team,
                     home_team_code=excluded.home_team_code,
@@ -173,6 +195,13 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                     away_team_code=excluded.away_team_code,
                     home_score=excluded.home_score,
                     away_score=excluded.away_score,
+                    score_duration=excluded.score_duration,
+                    regular_home_score=excluded.regular_home_score,
+                    regular_away_score=excluded.regular_away_score,
+                    extra_home_score=excluded.extra_home_score,
+                    extra_away_score=excluded.extra_away_score,
+                    penalty_home_score=excluded.penalty_home_score,
+                    penalty_away_score=excluded.penalty_away_score,
                     status=excluded.status,
                     match_date=excluded.match_date,
                     stage=excluded.stage,
@@ -187,6 +216,13 @@ def upsert_matches(connection: sqlite3.Connection, matches: Iterable[Match]) -> 
                     match.away_team_code,
                     match.home_score,
                     match.away_score,
+                    match.score_duration,
+                    match.regular_home_score,
+                    match.regular_away_score,
+                    match.extra_home_score,
+                    match.extra_away_score,
+                    match.penalty_home_score,
+                    match.penalty_away_score,
                     match.status,
                     match.match_date.isoformat(),
                     match.stage,
@@ -306,7 +342,9 @@ def store_rank_snapshot(connection: sqlite3.Connection, leaderboard: list[Leader
 def fetch_latest_completed_match(connection: sqlite3.Connection) -> sqlite3.Row | None:
     return connection.execute(
         """
-        SELECT match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score, match_date, stage, group_name, winner
+        SELECT match_id, home_team, home_team_code, away_team, away_team_code, home_score, away_score,
+               score_duration, regular_home_score, regular_away_score, extra_home_score, extra_away_score,
+               penalty_home_score, penalty_away_score, match_date, stage, group_name, winner
         FROM matches
         WHERE status IN ('FINISHED', 'FT', 'AET', 'PEN')
         ORDER BY match_date DESC
@@ -326,6 +364,13 @@ def fetch_all_matches(connection: sqlite3.Connection) -> list[sqlite3.Row]:
             away_team_code,
             home_score,
             away_score,
+            score_duration,
+            regular_home_score,
+            regular_away_score,
+            extra_home_score,
+            extra_away_score,
+            penalty_home_score,
+            penalty_away_score,
             status,
             match_date,
             stage,

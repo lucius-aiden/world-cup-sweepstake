@@ -51,3 +51,16 @@ def test_leaderboard_ties_prefer_more_teams_alive_before_name_order():
     leaderboard, _ = build_leaderboard(rows, previous_ranks={})
 
     assert [row.player for row in leaderboard] == ["Bob", "Alice"]
+
+
+def test_leaderboard_normalizes_string_alive_flags():
+    rows = [
+        {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 5, "alive": "0"},
+        {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 5, "alive": "1"},
+    ]
+
+    leaderboard, _ = build_leaderboard(rows, previous_ranks={})
+
+    assert leaderboard[0].team_1_status == "Knocked out"
+    assert leaderboard[0].team_2_status == "Still in"
+    assert leaderboard[0].teams_alive == 1
