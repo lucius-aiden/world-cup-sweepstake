@@ -20,6 +20,7 @@
         <nav class="nav-tabs" aria-label="Primary">
           <a class="nav-tab" href="{{ home_href }}">Insights</a>
           <a class="nav-tab is-active" href="{{ leaderboard_href }}">Leaderboard</a>
+          <a class="nav-tab" href="{{ draw_href }}">Draw</a>
         </nav>
       </section>
 
@@ -57,14 +58,14 @@
         </div>
         <div class="leaderboard-list">
           {% for row in view.leaderboard_rows %}
-          <details class="participant-row">
+          <details class="participant-row{% if row.teams_alive == 0 %} participant-row-eliminated{% endif %}">
             <summary>
               <div class="summary-cell summary-rank">#{{ row.rank }}</div>
-              <div class="summary-cell summary-player">
+              <div class="summary-cell summary-player{% if row.teams_alive == 0 %} summary-player-eliminated{% endif %}">
                 <strong>{{ row.player }}</strong>
               </div>
-              <div class="summary-cell summary-team">{{ row.team_1.flag }} {{ row.team_1.team_name }}</div>
-              <div class="summary-cell summary-team">{{ row.team_2.flag }} {{ row.team_2.team_name }}</div>
+              <div class="summary-cell summary-team{% if row.team_1.status.label == 'Eliminated' %} summary-team-eliminated{% endif %}">{{ row.team_1.flag }} {{ row.team_1.team_name }}</div>
+              <div class="summary-cell summary-team{% if row.team_2.status.label == 'Eliminated' %} summary-team-eliminated{% endif %}">{{ row.team_2.flag }} {{ row.team_2.team_name }}</div>
               <div class="summary-cell summary-points">{{ row.total_points }}</div>
               <div class="summary-cell summary-alive">{{ row.teams_alive }}</div>
             </summary>
@@ -75,7 +76,7 @@
             </div>
             <div class="team-card-grid">
               {% for team in [row.team_1, row.team_2] %}
-              <article class="team-card">
+              <article class="team-card{% if team.status.label == 'Eliminated' %} team-card-eliminated{% endif %}">
                 <header class="team-card-header">
                   <div>
                     <span class="team-flag">{{ team.flag }}</span>

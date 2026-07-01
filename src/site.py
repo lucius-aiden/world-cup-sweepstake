@@ -42,6 +42,7 @@ def build_static_site(
     shutil.copytree(BASE_DIR / "static", target_dir / "static", dirs_exist_ok=True)
     (target_dir / ".nojekyll").write_text("", encoding="utf-8")
     (target_dir / "leaderboard").mkdir(parents=True, exist_ok=True)
+    (target_dir / "draw").mkdir(parents=True, exist_ok=True)
 
     env = Environment(
         loader=FileSystemLoader(str(BASE_DIR / "templates")),
@@ -52,15 +53,25 @@ def build_static_site(
         asset_prefix="./static",
         home_href="./",
         leaderboard_href="./leaderboard/",
+        draw_href="./draw/",
     )
     leaderboard_html = env.get_template("leaderboard.html").render(
         view=view,
         asset_prefix="../static",
         home_href="../",
         leaderboard_href="./",
+        draw_href="../draw/",
+    )
+    draw_html = env.get_template("draw.html").render(
+        view=view,
+        asset_prefix="../static",
+        home_href="../",
+        leaderboard_href="../leaderboard/",
+        draw_href="./",
     )
     (target_dir / "index.html").write_text(home_html, encoding="utf-8")
     (target_dir / "leaderboard" / "index.html").write_text(leaderboard_html, encoding="utf-8")
+    (target_dir / "draw" / "index.html").write_text(draw_html, encoding="utf-8")
 
     maybe_generate_daily_message(settings, connection, view, run_time, force=force_daily_report)
     return target_dir

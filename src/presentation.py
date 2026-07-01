@@ -113,6 +113,29 @@ class ParticipantRowView:
 
 
 @dataclass(frozen=True)
+class DrawTeamView:
+    flag: str
+    team_name: str
+    owner_label: str | None
+    eliminated: bool
+    won: bool
+
+
+@dataclass(frozen=True)
+class DrawMatchView:
+    stage_label: str
+    detail: str
+    home_team: DrawTeamView
+    away_team: DrawTeamView
+
+
+@dataclass(frozen=True)
+class DrawRoundView:
+    title: str
+    matches: list[DrawMatchView]
+
+
+@dataclass(frozen=True)
 class InsightItemView:
     title: str
     detail: str
@@ -138,8 +161,10 @@ class DashboardView:
     leaderboard_blurb: str
     home_href: str
     leaderboard_href: str
+    draw_href: str
     asset_prefix: str
     leaderboard_rows: list[ParticipantRowView]
+    draw_rounds: list[DrawRoundView]
     insight_sections: list[InsightSectionView]
 
 
@@ -214,6 +239,15 @@ def build_dashboard_view(
             )
         )
     leaderboard_rows = _rank_participant_rows(leaderboard_rows)
+    draw_rounds = _build_draw_rounds(
+        matches_rows,
+        standings_by_code,
+        group_context_by_code,
+        knockout_context_by_code,
+        team_owners,
+        display_zone,
+        knockout_active=knockout_active,
+    )
 
     latest_completed = [match for match in matches_rows if _is_completed(match)]
     latest_completed.sort(key=lambda match: str(match["match_date"]), reverse=True)
@@ -243,8 +277,10 @@ def build_dashboard_view(
         leaderboard_blurb=_leaderboard_blurb(),
         home_href=_join_path(base_path, "/"),
         leaderboard_href=_join_path(base_path, "leaderboard/"),
+        draw_href=_join_path(base_path, "draw/"),
         asset_prefix=_join_path(base_path, "static"),
         leaderboard_rows=leaderboard_rows,
+        draw_rounds=draw_rounds,
         insight_sections=insight_sections,
     )
 
@@ -523,6 +559,59 @@ def _build_insight_sections(
     ]
 
 
+def _build_draw_rounds(
+    matches_rows: list[dict[str, Any]],
+    standings_by_code: dict[str, dict[str, Any]],
+    group_context_by_code: dict[str, dict[str, Any]],
+    knockout_context_by_code: dict[str, KnockoutContext],
+    team_owners: dict[str, list[str]],
+    display_zone: ZoneInfo,
+    *,
+    knockout_active: bool,
+) -> list[DrawRoundView]:
+    rounds: list[DrawRoundView] = []
+    for stage_key, stage_title in _draw_stage_order():
+        stage_matches = [
+            dict(match)
+            for match in matches_rows
+            if _draw_stage_key(match.get("stage")) == stage_key
+        ]
+        if not stage_matches:
+            continue
+        stage_matches.sort(key=lambda match: str(match["match_date"]))
+        rounds.append(
+            DrawRoundView(
+                title=stage_title,
+                matches=[
+                    DrawMatchView(
+                        stage_label=stage_title,
+                        detail=_match_meta(match, display_zone),
+                        home_team=_build_draw_team(
+                            match,
+                            side="home",
+                            standings_by_code=standings_by_code,
+                            group_context_by_code=group_context_by_code,
+                            knockout_context_by_code=knockout_context_by_code,
+                            team_owners=team_owners,
+                            knockout_active=knockout_active,
+                        ),
+                        away_team=_build_draw_team(
+                            match,
+                            side="away",
+                            standings_by_code=standings_by_code,
+                            group_context_by_code=group_context_by_code,
+                            knockout_context_by_code=knockout_context_by_code,
+                            team_owners=team_owners,
+                            knockout_active=knockout_active,
+                        ),
+                    )
+                    for match in stage_matches
+                ],
+            )
+        )
+    return rounds
+
+
 def _last_match(matches: list[dict[str, Any]], display_zone: ZoneInfo) -> MatchSummaryView | None:
     completed = [match for match in matches if _is_completed(match)]
     if not completed:
@@ -661,6 +750,13 @@ def _owner_suffix(team_owners: dict[str, list[str]], team_code: Any) -> str:
     owners = team_owners.get(str(team_code or ""), [])
     label = ", ".join(owners) if owners else "Unassigned"
     return f"[{label}]"
+
+
+def _owner_label(team_owners: dict[str, list[str]], team_code: Any) -> str | None:
+    owners = team_owners.get(str(team_code or ""), [])
+    if not owners:
+        return None
+    return ", ".join(owners)
 
 def _fixture_day_window(now_local: datetime, fixture_day_ends_hour: int) -> tuple[datetime, datetime]:
     anchor = now_local.replace(hour=fixture_day_ends_hour, minute=0, second=0, microsecond=0)
@@ -811,6 +907,31 @@ def _stage_label(stage: Any) -> str:
         return "Round of 32"
     return value.replace("_", " ").title() if value else "Knockout stage"
 
+
+def _draw_stage_key(stage: Any) -> str | None:
+    value = str(stage or "").upper()
+    if "32" in value or "PLAYOFF" in value:
+        return "round_of_32"
+    if "16" in value:
+        return "round_of_16"
+    if "QUARTER" in value:
+        return "quarter_finals"
+    if "SEMI" in value:
+        return "semi_finals"
+    if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value and "THIRD" not in value:
+        return "final"
+    return None
+
+
+def _draw_stage_order() -> list[tuple[str, str]]:
+    return [
+        ("round_of_32", "Round of 32"),
+        ("round_of_16", "Round of 16"),
+        ("quarter_finals", "Quarter-finals"),
+        ("semi_finals", "Semi-finals"),
+        ("final", "Final"),
+    ]
+
 def _ordinal(value: int) -> str:
     if 10 <= value % 100 <= 20:
         return "th"
@@ -939,3 +1060,45 @@ def _rank_participant_rows(rows: list[ParticipantRowView]) -> list[ParticipantRo
         )
         for index, row in enumerate(ordered, start=1)
     ]
+
+
+def _build_draw_team(
+    match: dict[str, Any],
+    *,
+    side: str,
+    standings_by_code: dict[str, dict[str, Any]],
+    group_context_by_code: dict[str, dict[str, Any]],
+    knockout_context_by_code: dict[str, KnockoutContext],
+    team_owners: dict[str, list[str]],
+    knockout_active: bool,
+) -> DrawTeamView:
+    team_key = f"{side}_team"
+    code_key = f"{side}_team_code"
+    team_name = str(match.get(team_key) or "TBD")
+    team_code = str(match.get(code_key) or "")
+    standing = standings_by_code.get(team_code)
+    context = group_context_by_code.get(team_code, {})
+    knockout_context = knockout_context_by_code.get(team_code)
+    merged = {}
+    if standing:
+        merged |= standing
+    if context:
+        merged |= context
+    merged["alive"] = _effective_alive(
+        fallback=standing.get("alive", 1) if standing else 1,
+        standing=standing,
+        group_context=context,
+        knockout_context=knockout_context,
+        knockout_active=knockout_active,
+    )
+    merged["knockout_phase"] = knockout_active and knockout_context is not None
+    merged["knockout_active"] = knockout_active
+    status = determine_team_status(merged if (standing or context or knockout_context) else None)
+    winner_code = _winner_code(match)
+    return DrawTeamView(
+        flag=_flag_for_code(team_code),
+        team_name=team_name,
+        owner_label=_owner_label(team_owners, team_code),
+        eliminated=status.label == "Eliminated",
+        won=bool(team_code and winner_code and team_code == winner_code),
+    )

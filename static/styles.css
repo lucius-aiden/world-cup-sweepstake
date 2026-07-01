@@ -274,6 +274,10 @@ h3 {
   list-style: none;
 }
 
+.participant-row-eliminated {
+  opacity: 0.74;
+}
+
 .participant-row summary::-webkit-details-marker {
   display: none;
 }
@@ -318,6 +322,13 @@ h3 {
   display: block;
 }
 
+.summary-player-eliminated strong,
+.summary-team-eliminated {
+  color: #a79f86;
+  text-decoration: line-through;
+  text-decoration-color: rgba(167, 159, 134, 0.65);
+}
+
 .summary-team,
 .summary-points,
 .summary-alive {
@@ -358,6 +369,23 @@ h3 {
   transition:
     opacity 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
     transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.team-card-eliminated {
+  background:
+    linear-gradient(180deg, rgba(40, 40, 40, 0.92), rgba(18, 18, 18, 0.92)),
+    var(--panel-soft);
+}
+
+.team-card-eliminated h3,
+.team-card-eliminated strong,
+.team-card-eliminated .team-flag {
+  color: #beb7a4;
+}
+
+.team-card-eliminated h3 {
+  text-decoration: line-through;
+  text-decoration-color: rgba(190, 183, 164, 0.65);
 }
 
 .participant-row[open] .team-card,
@@ -485,6 +513,106 @@ h3 {
   grid-column: 1 / -1;
 }
 
+.draw-panel {
+  padding: 18px;
+}
+
+.draw-scroll {
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.draw-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.draw-round {
+  display: grid;
+  gap: 14px;
+}
+
+.draw-round-header {
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  background:
+    linear-gradient(135deg, rgba(244, 198, 41, 0.12), rgba(10, 10, 10, 0.96) 54%),
+    var(--panel-soft);
+}
+
+.draw-match-list {
+  display: grid;
+  gap: 14px;
+}
+
+.draw-match {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(216, 171, 17, 0.2);
+  background: rgba(10, 10, 10, 0.84);
+}
+
+.draw-match-meta {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.draw-team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(216, 171, 17, 0.18);
+  background: rgba(130, 101, 8, 0.12);
+}
+
+.draw-team-main {
+  display: grid;
+  gap: 4px;
+}
+
+.draw-team-name {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.04em;
+}
+
+.draw-team-owner {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.draw-team-badge {
+  font-family: "Barlow Condensed", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.draw-team-won {
+  border-color: rgba(244, 198, 41, 0.55);
+  background: rgba(130, 101, 8, 0.24);
+}
+
+.draw-team-won .draw-team-badge {
+  color: var(--accent);
+}
+
+.draw-team-eliminated {
+  background: rgba(34, 34, 34, 0.88);
+}
+
+.draw-team-eliminated .draw-team-name {
+  color: #a79f86;
+  text-decoration: line-through;
+  text-decoration-color: rgba(167, 159, 134, 0.65);
+}
+
 .insight-list-results .insight-item:nth-child(2) {
   border-top: 0;
   padding-top: 0;
@@ -512,6 +640,7 @@ h3 {
 
   .nav-tabs {
     justify-self: start;
+    flex-wrap: wrap;
   }
 
   h1 {
@@ -540,5 +669,9 @@ h3 {
   .insight-list-results .insight-item:nth-child(2) {
     border-top: 1px solid rgba(216, 171, 17, 0.2);
     padding-top: 14px;
+  }
+
+  .draw-grid {
+    grid-auto-columns: minmax(220px, 85vw);
   }
 }

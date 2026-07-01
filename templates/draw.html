@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ view.tournament_name }} | Draw</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ asset_prefix }}/styles.css" />
+  </head>
+  <body>
+    <main class="page-shell">
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Pearson ELS Sweepstake</p>
+          <h1>Draw</h1>
+          <p class="subcopy">Follow the knockout path to the final and see who each surviving team could face next.</p>
+        </div>
+        <nav class="nav-tabs" aria-label="Primary">
+          <a class="nav-tab" href="{{ home_href }}">Insights</a>
+          <a class="nav-tab" href="{{ leaderboard_href }}">Leaderboard</a>
+          <a class="nav-tab is-active" href="{{ draw_href }}">Draw</a>
+        </nav>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card">
+          <span class="summary-label">Last updated</span>
+          <strong>{{ view.last_updated }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Participants</span>
+          <strong>{{ view.participants_count }}</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Latest result</span>
+          <strong>{{ view.latest_result }}</strong>
+        </article>
+      </section>
+
+      <section class="panel draw-panel">
+        <div class="section-header">
+          <h2>Knockout Bracket</h2>
+          <p class="section-copy">Completed ties show winners in gold. Eliminated teams are greyed out so the live paths stand out.</p>
+        </div>
+        {% if view.draw_rounds %}
+        <div class="draw-scroll">
+          <div class="draw-grid">
+            {% for round in view.draw_rounds %}
+            <section class="draw-round">
+              <div class="draw-round-header">
+                <h3>{{ round.title }}</h3>
+              </div>
+              <div class="draw-match-list">
+                {% for match in round.matches %}
+                <article class="draw-match">
+                  <div class="draw-match-meta">{{ match.detail }}</div>
+                  {% for team in [match.home_team, match.away_team] %}
+                  <div class="draw-team{% if team.eliminated %} draw-team-eliminated{% endif %}{% if team.won %} draw-team-won{% endif %}">
+                    <div class="draw-team-main">
+                      <span class="draw-team-name">{{ team.flag }} {{ team.team_name }}</span>
+                      {% if team.owner_label %}
+                      <span class="draw-team-owner">{{ team.owner_label }}</span>
+                      {% endif %}
+                    </div>
+                    {% if team.won %}
+                    <span class="draw-team-badge">Won</span>
+                    {% elif team.eliminated %}
+                    <span class="draw-team-badge">Out</span>
+                    {% endif %}
+                  </div>
+                  {% endfor %}
+                </article>
+                {% endfor %}
+              </div>
+            </section>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <p class="empty-state">No knockout draw is available yet.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>
