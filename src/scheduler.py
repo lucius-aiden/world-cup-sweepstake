@@ -7,6 +7,7 @@ from . import database
 from .api_client import FootballDataProvider
 from .configuration import Settings
 from .leaderboard import build_leaderboard, write_workbook
+from .leaderboard_state import enrich_leaderboard_inputs
 from .models import LeaderboardRow, Match, MovementRecord
 from .sharepoint import SharePointClient
 from .standings import build_effective_standings
@@ -49,8 +50,13 @@ class SweepstakeService:
 
         previous_ranks = database.fetch_rank_snapshot(connection)
         previous_points = database.fetch_points_snapshot(connection)
+        leaderboard_inputs = enrich_leaderboard_inputs(
+            [dict(row) for row in database.fetch_leaderboard_inputs(connection)],
+            [dict(row) for row in database.fetch_team_standings(connection)],
+            [dict(row) for row in database.fetch_all_matches(connection)],
+        )
         leaderboard, _ = build_leaderboard(
-            database.fetch_leaderboard_inputs(connection),
+            leaderboard_inputs,
             previous_ranks,
             previous_points,
         )
