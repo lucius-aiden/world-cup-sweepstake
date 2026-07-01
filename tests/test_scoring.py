@@ -131,3 +131,104 @@ def test_enrich_leaderboard_inputs_marks_missing_standings_teams_out_after_knock
     assert leaderboard[0].team_1_status == "Knocked out"
     assert leaderboard[0].team_2_status == "Knocked out"
     assert leaderboard[0].teams_alive == 0
+
+
+def test_enrich_leaderboard_inputs_uses_group_matches_when_standings_are_missing():
+    rows = [
+        {"player": "Bob", "team_slot": 1, "team_name": "Belgium", "team_code": "BEL", "points": 2, "alive": 1},
+        {"player": "Bob", "team_slot": 2, "team_name": "Iraq", "team_code": "IRQ", "points": 1, "alive": 1},
+    ]
+    matches_rows = [
+        {
+            "match_id": "g1",
+            "home_team": "Belgium",
+            "home_team_code": "BEL",
+            "away_team": "Iraq",
+            "away_team_code": "IRQ",
+            "home_score": 1,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-06-20T12:00:00+00:00",
+            "stage": "GROUP_STAGE",
+            "group_name": "GROUP_X",
+            "winner": None,
+        },
+        {
+            "match_id": "g2",
+            "home_team": "Belgium",
+            "home_team_code": "BEL",
+            "away_team": "Canada",
+            "away_team_code": "CAN",
+            "home_score": 0,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-06-23T12:00:00+00:00",
+            "stage": "GROUP_STAGE",
+            "group_name": "GROUP_X",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "g3",
+            "home_team": "Iraq",
+            "home_team_code": "IRQ",
+            "away_team": "Canada",
+            "away_team_code": "CAN",
+            "home_score": 0,
+            "away_score": 2,
+            "status": "FINISHED",
+            "match_date": "2026-06-26T12:00:00+00:00",
+            "stage": "GROUP_STAGE",
+            "group_name": "GROUP_X",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "g4",
+            "home_team": "Belgium",
+            "home_team_code": "BEL",
+            "away_team": "Mexico",
+            "away_team_code": "MEX",
+            "home_score": 0,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-06-27T12:00:00+00:00",
+            "stage": "GROUP_STAGE",
+            "group_name": "GROUP_X",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "g5",
+            "home_team": "Iraq",
+            "home_team_code": "IRQ",
+            "away_team": "Mexico",
+            "away_team_code": "MEX",
+            "home_score": 0,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-06-28T12:00:00+00:00",
+            "stage": "GROUP_STAGE",
+            "group_name": "GROUP_X",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "k1",
+            "home_team": "Canada",
+            "home_team_code": "CAN",
+            "away_team": "South Africa",
+            "away_team_code": "RSA",
+            "home_score": 1,
+            "away_score": 0,
+            "status": "FINISHED",
+            "match_date": "2026-06-29T12:00:00+00:00",
+            "stage": "LAST_32",
+            "winner": "HOME_TEAM",
+        },
+    ]
+
+    leaderboard, _ = build_leaderboard(
+        enrich_leaderboard_inputs(rows, standings_rows=[], matches_rows=matches_rows),
+        previous_ranks={},
+    )
+
+    assert leaderboard[0].team_1_status == "Knocked out"
+    assert leaderboard[0].team_2_status == "Knocked out"
+    assert leaderboard[0].teams_alive == 0
