@@ -1,6 +1,6 @@
 Current leader: Katy (31 pts)
 Best performing teams: 🇫🇷 France [Jian], 🇲🇽 Mexico [Sarah J], 🇧🇷 Brazil [Katy]
-Teams in trouble: 🇧🇦 Bosnia-Herzegovina [Patricia DS], 🇸🇳 Senegal [Leti], 🇨🇩 Congo DR [Patricia DS]
-Biggest team changes: 🇲🇦 Morocco, 🇧🇪 Belgium, 🇫🇷 France
-Today's key fixtures: 🇪🇸 Spain vs 🇦🇹 Austria, 🇵🇹 Portugal vs 🇭🇷 Croatia, 🇨🇭 Switzerland vs 🇩🇿 Algeria
+Teams in trouble: 🇦🇹 Austria [Patricia L], 🇧🇦 Bosnia-Herzegovina [Patricia DS], 🇸🇳 Senegal [Leti]
+Biggest team changes: 🇲🇦 Morocco, 🇧🇪 Belgium
+Today's key fixtures: 🇵🇹 Portugal vs 🇭🇷 Croatia, 🇨🇭 Switzerland vs 🇩🇿 Algeria
 Full leaderboard: /dev/leaderboard/
