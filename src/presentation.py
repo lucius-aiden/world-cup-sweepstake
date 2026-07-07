@@ -647,25 +647,41 @@ def _build_draw_rounds(
     *,
     knockout_active: bool,
 ) -> list[DrawRoundView]:
+    stage_order = _draw_stage_order()
     matches_by_stage: dict[str, list[dict[str, Any]]] = {
         stage_key: _sort_draw_matches(
             [dict(match) for match in matches_rows if _draw_stage_key(match.get("stage")) == stage_key]
         )
-        for stage_key, _ in _draw_stage_order()
+        for stage_key, _ in stage_order
     }
     present_stage_indexes = [
         index
-        for index, (stage_key, _) in enumerate(_draw_stage_order())
+        for index, (stage_key, _) in enumerate(stage_order)
         if matches_by_stage.get(stage_key)
     ]
     if not present_stage_indexes:
         return []
 
     first_stage_index = min(present_stage_indexes)
-    previous_slots = matches_by_stage[_draw_stage_order()[first_stage_index][0]]
-    rounds: list[DrawRoundView] = []
-    for absolute_index, (stage_key, stage_title) in enumerate(_draw_stage_order()[first_stage_index:], start=first_stage_index):
+    ordered_matches_by_stage: dict[str, list[dict[str, Any]]] = {}
+    next_stage_matches: list[dict[str, Any]] = []
+    for absolute_index in range(len(stage_order) - 1, first_stage_index - 1, -1):
+        stage_key, _ = stage_order[absolute_index]
         stage_matches = matches_by_stage[stage_key]
+        if stage_matches and next_stage_matches:
+            ordered_matches_by_stage[stage_key] = _order_draw_prior_stage_matches(
+                stage_matches,
+                next_stage_matches,
+            )
+        else:
+            ordered_matches_by_stage[stage_key] = stage_matches
+        if ordered_matches_by_stage[stage_key]:
+            next_stage_matches = ordered_matches_by_stage[stage_key]
+
+    previous_slots = ordered_matches_by_stage[stage_order[first_stage_index][0]]
+    rounds: list[DrawRoundView] = []
+    for absolute_index, (stage_key, stage_title) in enumerate(stage_order[first_stage_index:], start=first_stage_index):
+        stage_matches = ordered_matches_by_stage[stage_key]
         relative_round_index = absolute_index - first_stage_index
         if relative_round_index == 0:
             ordered_stage_matches = stage_matches
@@ -758,6 +774,70 @@ def _order_draw_stage_matches(
     return ordered_slots
 
 
+def _order_draw_prior_stage_matches(
+    stage_matches: list[dict[str, Any]],
+    next_stage_matches: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not stage_matches or not next_stage_matches:
+        return stage_matches
+
+    bucket_capacity = 2
+    buckets: list[list[dict[str, Any]]] = [[] for _ in next_stage_matches]
+    match_candidates: list[tuple[int, int, int, dict[str, Any], list[int]]] = []
+    for stable_index, match in enumerate(stage_matches):
+        scored_slots = sorted(
+            (
+                (_draw_next_match_score(match, next_match), slot_index)
+                for slot_index, next_match in enumerate(next_stage_matches)
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        ranked_slots = [slot_index for score, slot_index in scored_slots if score > 0]
+        best_score = scored_slots[0][0] if scored_slots else 0
+        match_candidates.append((best_score, len(ranked_slots), stable_index, match, ranked_slots))
+
+    leftovers: list[tuple[int, dict[str, Any]]] = []
+    for _, _, stable_index, match, ranked_slots in sorted(
+        match_candidates,
+        key=lambda item: (-item[0], item[1], item[2]),
+    ):
+        placed = False
+        for slot_index in ranked_slots:
+            if len(buckets[slot_index]) < bucket_capacity:
+                buckets[slot_index].append(match)
+                placed = True
+                break
+        if not placed:
+            leftovers.append((stable_index, match))
+
+    for _, match in leftovers:
+        for bucket in buckets:
+            if len(bucket) < bucket_capacity:
+                bucket.append(match)
+                break
+
+    ordered_matches: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for bucket in buckets:
+        ordered_bucket = _sort_draw_matches(bucket)
+        for match in ordered_bucket:
+            match_id = str(match.get("match_id") or "")
+            if match_id and match_id in seen_ids:
+                continue
+            if match_id:
+                seen_ids.add(match_id)
+            ordered_matches.append(match)
+
+    for match in stage_matches:
+        match_id = str(match.get("match_id") or "")
+        if match_id and match_id in seen_ids:
+            continue
+        if match_id:
+            seen_ids.add(match_id)
+        ordered_matches.append(match)
+    return ordered_matches
+
+
 def _draw_match_team_codes(match: dict[str, Any] | None) -> set[str]:
     if not match:
         return set()
@@ -788,6 +868,26 @@ def _draw_pair_match_score(team_codes: set[str], pair_codes: set[str]) -> int:
     if not team_codes or not pair_codes:
         return 0
     overlap = len(team_codes & pair_codes)
+    if overlap == 2:
+        return 4
+    if overlap == 1:
+        return 2
+    return 0
+
+
+def _draw_next_match_score(match: dict[str, Any], next_match: dict[str, Any]) -> int:
+    next_team_codes = _draw_match_team_codes(next_match)
+    if not next_team_codes:
+        return 0
+    team_codes = _draw_match_team_codes(match)
+    if not team_codes:
+        return 0
+
+    overlap = len(team_codes & next_team_codes)
+    winner_code = _winner_code(match)
+    winner_overlap = 1 if winner_code and winner_code in next_team_codes else 0
+    if winner_overlap:
+        return 5 + overlap
     if overlap == 2:
         return 4
     if overlap == 1:

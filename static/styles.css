@@ -549,10 +549,12 @@ h3 {
 .draw-grid {
   --draw-row-size: 100px;
   --draw-row-gap: 16px;
+  --draw-column-gap: 26px;
+  --draw-link-offset: calc(var(--draw-column-gap) / 2);
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(232px, 244px);
-  gap: 26px;
+  gap: var(--draw-column-gap);
   align-items: start;
 }
 
@@ -604,7 +606,7 @@ h3 {
 .draw-match-linked::after {
   content: "";
   position: absolute;
-  left: -18px;
+  left: calc(var(--draw-link-offset) * -1);
   top: calc(50% - (var(--draw-source-gap, 0) * (var(--draw-row-size) + var(--draw-row-gap))));
   height: calc(var(--draw-source-gap, 0) * 2 * (var(--draw-row-size) + var(--draw-row-gap)));
   border-left: 2px solid rgba(216, 171, 17, 0.5);
@@ -613,9 +615,9 @@ h3 {
 .draw-match-advances::before {
   content: "";
   position: absolute;
-  right: -26px;
+  right: calc(var(--draw-link-offset) * -1);
   top: 50%;
-  width: 26px;
+  width: var(--draw-link-offset);
   border-top: 2px solid rgba(216, 171, 17, 0.38);
 }
 
@@ -642,9 +644,9 @@ h3 {
 .draw-team-connected::before {
   content: "";
   position: absolute;
-  left: -18px;
+  left: calc(var(--draw-link-offset) * -1);
   top: 50%;
-  width: 18px;
+  width: var(--draw-link-offset);
   border-top: 2px solid rgba(216, 171, 17, 0.5);
 }
 
@@ -759,8 +761,8 @@ h3 {
   .draw-grid {
     --draw-row-size: 88px;
     --draw-row-gap: 12px;
+    --draw-column-gap: 18px;
     grid-auto-columns: minmax(224px, 86vw);
-    gap: 18px;
   }
 
   .draw-match {
@@ -800,21 +802,7 @@ h3 {
   .draw-grid {
     --draw-row-size: 82px;
     --draw-row-gap: 10px;
+    --draw-column-gap: 14px;
     grid-auto-columns: minmax(214px, 90vw);
-    gap: 14px;
-  }
-
-  .draw-match-advances::before {
-    right: -16px;
-    width: 16px;
-  }
-
-  .draw-match-linked::after,
-  .draw-team-connected::before {
-    left: -12px;
-  }
-
-  .draw-team-connected::before {
-    width: 12px;
   }
 }

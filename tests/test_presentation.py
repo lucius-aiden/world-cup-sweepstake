@@ -1034,6 +1034,106 @@ def test_draw_view_orders_knockout_slots_by_predecessor_matches_not_kickoff_time
     assert round_of_16[1].away_team.team_name == "France"
 
 
+def test_draw_view_reorders_previous_round_to_match_next_round_bracket_path():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[],
+        standings_rows=[],
+        matches_rows=[
+            {
+                "match_id": "r32-1",
+                "home_team": "Germany",
+                "home_team_code": "GER",
+                "away_team": "Paraguay",
+                "away_team_code": "PAR",
+                "home_score": 0,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "AWAY_TEAM",
+            },
+            {
+                "match_id": "r32-2",
+                "home_team": "Netherlands",
+                "home_team_code": "NED",
+                "away_team": "Morocco",
+                "away_team_code": "MAR",
+                "home_score": 0,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 16, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "AWAY_TEAM",
+            },
+            {
+                "match_id": "r32-3",
+                "home_team": "Ivory Coast",
+                "home_team_code": "CIV",
+                "away_team": "Norway",
+                "away_team_code": "NOR",
+                "home_score": 0,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 30, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "AWAY_TEAM",
+            },
+            {
+                "match_id": "r32-4",
+                "home_team": "France",
+                "home_team_code": "FRA",
+                "away_team": "Sweden",
+                "away_team_code": "SWE",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 30, 16, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "r16-1",
+                "home_team": "Paraguay",
+                "home_team_code": "PAR",
+                "away_team": "France",
+                "away_team_code": "FRA",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 4, 20, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": None,
+            },
+            {
+                "match_id": "r16-2",
+                "home_team": "Morocco",
+                "home_team_code": "MAR",
+                "away_team": "Norway",
+                "away_team_code": "NOR",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 5, 20, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": None,
+            },
+        ],
+    )
+
+    round_of_32 = view.draw_rounds[0].matches
+    assert round_of_32[0].away_team.team_name == "Paraguay"
+    assert round_of_32[1].home_team.team_name == "France"
+    assert round_of_32[2].away_team.team_name == "Morocco"
+    assert round_of_32[3].away_team.team_name == "Norway"
+
+    round_of_16 = view.draw_rounds[1].matches
+    assert round_of_16[0].home_team.team_name == "Paraguay"
+    assert round_of_16[0].away_team.team_name == "France"
+    assert round_of_16[1].home_team.team_name == "Morocco"
+    assert round_of_16[1].away_team.team_name == "Norway"
+
+
 def test_latest_results_expand_to_balanced_two_row_snapshot_when_knockouts_exist():
     matches_rows = []
     for match_number in range(1, 11):
