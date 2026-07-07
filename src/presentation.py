@@ -21,7 +21,7 @@ from .leaderboard_state import (
 )
 from .leaderboard import build_leaderboard
 from .match_format import format_match_scoreline
-from .models import TeamOdds
+from .models import TeamOdds, TopScorer
 from .team_codes import resolve_team_code
 
 FLAG_OVERRIDES = {
@@ -99,6 +99,7 @@ class TeamCardView:
     status: StatusView
     last_match: MatchSummaryView | None
     next_match: MatchSummaryView | None
+    top_scorer: str | None
     win_odds: str | None
 
 
@@ -117,14 +118,20 @@ class DrawTeamView:
     flag: str
     team_name: str
     owner_label: str | None
+    source_label: str | None
     eliminated: bool
     won: bool
+    placeholder: bool
 
 
 @dataclass(frozen=True)
 class DrawMatchView:
     stage_label: str
     detail: str
+    row_start: int
+    source_gap: int
+    round_index: int
+    placeholder: bool
     home_team: DrawTeamView
     away_team: DrawTeamView
 
@@ -165,6 +172,7 @@ class DashboardView:
     asset_prefix: str
     leaderboard_rows: list[ParticipantRowView]
     draw_rounds: list[DrawRoundView]
+    draw_grid_rows: int
     insight_sections: list[InsightSectionView]
 
 
@@ -174,6 +182,7 @@ def build_dashboard_view(
     leaderboard_inputs: list[dict],
     standings_rows: list[dict] | None = None,
     matches_rows: list[dict] | None = None,
+    top_scorers: list[TopScorer] | None = None,
     odds_by_team: dict[str, TeamOdds] | None = None,
     site_base_path: str = "",
     now: datetime | None = None,
@@ -189,6 +198,8 @@ def build_dashboard_view(
     matches_by_code = _group_matches_by_team(matches_rows)
     group_context_by_code = _build_group_context(matches_rows)
     team_owners = _build_team_owner_map(leaderboard_inputs)
+    top_scorers = top_scorers or []
+    top_scorers_by_team = _build_top_scorer_map(top_scorers)
     knockout_active = _knockout_phase_active(matches_rows)
     knockout_context_by_code = _build_knockout_context(
         matches_by_code,
@@ -215,6 +226,7 @@ def build_dashboard_view(
             matches_by_code,
             knockout_context_by_code,
             odds_by_team,
+            top_scorers_by_team,
             display_zone,
             knockout_active,
         )
@@ -225,6 +237,7 @@ def build_dashboard_view(
             matches_by_code,
             knockout_context_by_code,
             odds_by_team,
+            top_scorers_by_team,
             display_zone,
             knockout_active,
         )
@@ -258,6 +271,7 @@ def build_dashboard_view(
     insight_sections = _build_insight_sections(
         matches_rows,
         standings_rows,
+        top_scorers,
         group_context_by_code,
         team_owners,
         knockout_context_by_code,
@@ -281,6 +295,7 @@ def build_dashboard_view(
         asset_prefix=_join_path(base_path, "static"),
         leaderboard_rows=leaderboard_rows,
         draw_rounds=draw_rounds,
+        draw_grid_rows=_draw_grid_rows(draw_rounds),
         insight_sections=insight_sections,
     )
 
@@ -349,6 +364,7 @@ def _build_team_card(
     matches_by_code: dict[str, list[dict[str, Any]]],
     knockout_context_by_code: dict[str, KnockoutContext],
     odds_by_team: dict[str, TeamOdds],
+    top_scorers_by_team: dict[str, TopScorer],
     display_zone: ZoneInfo,
     knockout_active: bool,
 ) -> TeamCardView:
@@ -357,8 +373,6 @@ def _build_team_card(
     context = group_context_by_code.get(team_code, {})
     knockout_context = knockout_context_by_code.get(team_code)
     team_matches = matches_by_code.get(team_code, [])
-    last_match = _last_match(team_matches, display_zone)
-    next_match = _next_match(team_matches, display_zone)
     odds = odds_by_team.get(team_code)
     status_context = {}
     if standing:
@@ -373,22 +387,52 @@ def _build_team_card(
     )
     status_context["knockout_phase"] = knockout_active and knockout_context is not None
     status_context["knockout_active"] = knockout_active
+    status = determine_team_status(status_context)
+    last_match = _last_match(team_matches, display_zone)
+    next_match = None if status.label == "Eliminated" else _next_match(team_matches, display_zone)
     return TeamCardView(
         flag=FLAG_OVERRIDES.get(team_code, "🏳️"),
         team_name=str(team_input["team_name"]),
         group_label=_group_label(context or standing, knockout_context=knockout_context),
         group_points=int(standing["points"]) if standing else int(team_input.get("points", 0)),
         form=_team_form(team_matches, team_code),
-        status=determine_team_status(status_context),
+        status=status,
         last_match=last_match,
         next_match=next_match,
+        top_scorer=_format_team_top_scorer(top_scorers_by_team.get(team_code)),
         win_odds=_format_odds(odds),
     )
+
+
+def _build_top_scorer_map(top_scorers: list[TopScorer]) -> dict[str, TopScorer]:
+    best_by_team: dict[str, TopScorer] = {}
+    for scorer in top_scorers:
+        current = best_by_team.get(scorer.team_code)
+        if current is None or (
+            scorer.goals,
+            scorer.assists,
+            scorer.penalties,
+            scorer.player_name.lower(),
+        ) > (
+            current.goals,
+            current.assists,
+            current.penalties,
+            current.player_name.lower(),
+        ):
+            best_by_team[scorer.team_code] = scorer
+    return best_by_team
+
+
+def _format_team_top_scorer(scorer: TopScorer | None) -> str | None:
+    if scorer is None:
+        return None
+    return f"{scorer.player_name} ({scorer.goals} goals)"
 
 
 def _build_insight_sections(
     matches_rows: list[dict[str, Any]],
     standings_rows: list[dict[str, Any]],
+    top_scorers: list[TopScorer],
     group_context_by_code: dict[str, dict[str, Any]],
     team_owners: dict[str, list[str]],
     knockout_context_by_code: dict[str, KnockoutContext],
@@ -503,6 +547,22 @@ def _build_insight_sections(
             empty_message="No fixtures scheduled today.",
         ),
         InsightSectionView(
+            title="Top Scorers",
+            description="Top scorers come straight from the current competition scorer feed, including assists and penalties.",
+            items=[
+                InsightItemView(
+                    title=f'{_flag_for_code(scorer.team_code)} {scorer.player_name}',
+                    detail=(
+                        f'{scorer.team_name} {_owner_suffix(team_owners, scorer.team_code)} · '
+                        f'{scorer.goals} goals · {scorer.assists} assists'
+                        + (f' · {scorer.penalties} pens' if scorer.penalties else "")
+                    ),
+                )
+                for scorer in top_scorers[:5]
+            ],
+            empty_message="Top scorer data is not available yet.",
+        ),
+        InsightSectionView(
             title="Best Performing Teams",
             description=(
                 "Best performing teams are ranked by deepest secured knockout stage, then group points, then goal difference."
@@ -569,44 +629,55 @@ def _build_draw_rounds(
     *,
     knockout_active: bool,
 ) -> list[DrawRoundView]:
+    matches_by_stage: dict[str, list[dict[str, Any]]] = {
+        stage_key: sorted(
+            [
+                dict(match)
+                for match in matches_rows
+                if _draw_stage_key(match.get("stage")) == stage_key
+            ],
+            key=lambda match: str(match["match_date"]),
+        )
+        for stage_key, _ in _draw_stage_order()
+    }
+    present_stage_indexes = [
+        index
+        for index, (stage_key, _) in enumerate(_draw_stage_order())
+        if matches_by_stage.get(stage_key)
+    ]
+    if not present_stage_indexes:
+        return []
+
+    first_stage_index = min(present_stage_indexes)
+    previous_count = len(matches_by_stage[_draw_stage_order()[first_stage_index][0]])
     rounds: list[DrawRoundView] = []
-    for stage_key, stage_title in _draw_stage_order():
-        stage_matches = [
-            dict(match)
-            for match in matches_rows
-            if _draw_stage_key(match.get("stage")) == stage_key
-        ]
-        if not stage_matches:
-            continue
-        stage_matches.sort(key=lambda match: str(match["match_date"]))
+    for absolute_index, (stage_key, stage_title) in enumerate(_draw_stage_order()[first_stage_index:], start=first_stage_index):
+        stage_matches = matches_by_stage[stage_key]
+        expected_count = max(len(stage_matches), previous_count)
+        relative_round_index = absolute_index - first_stage_index
+        match_views: list[DrawMatchView] = []
+        for slot_index in range(expected_count):
+            match = stage_matches[slot_index] if slot_index < len(stage_matches) else None
+            match_views.append(
+                _build_draw_match(
+                    match,
+                    stage_title=stage_title,
+                    stage_key=stage_key,
+                    slot_index=slot_index,
+                    round_index=relative_round_index,
+                    display_zone=display_zone,
+                    standings_by_code=standings_by_code,
+                    group_context_by_code=group_context_by_code,
+                    knockout_context_by_code=knockout_context_by_code,
+                    team_owners=team_owners,
+                    knockout_active=knockout_active,
+                )
+            )
+        previous_count = max(1, (expected_count + 1) // 2)
         rounds.append(
             DrawRoundView(
                 title=stage_title,
-                matches=[
-                    DrawMatchView(
-                        stage_label=stage_title,
-                        detail=_match_meta(match, display_zone),
-                        home_team=_build_draw_team(
-                            match,
-                            side="home",
-                            standings_by_code=standings_by_code,
-                            group_context_by_code=group_context_by_code,
-                            knockout_context_by_code=knockout_context_by_code,
-                            team_owners=team_owners,
-                            knockout_active=knockout_active,
-                        ),
-                        away_team=_build_draw_team(
-                            match,
-                            side="away",
-                            standings_by_code=standings_by_code,
-                            group_context_by_code=group_context_by_code,
-                            knockout_context_by_code=knockout_context_by_code,
-                            team_owners=team_owners,
-                            knockout_active=knockout_active,
-                        ),
-                    )
-                    for match in stage_matches
-                ],
+                matches=match_views,
             )
         )
     return rounds
@@ -768,7 +839,8 @@ def _leaderboard_blurb() -> str:
     return (
         "Each participant has two teams. Group-stage matches score 3 points for a win, "
         "1 for a draw, and 0 for a loss. Once the knockout rounds begin, teams get a "
-        "10-point bonus for each knockout match they win, up to 50 points for the champion. "
+        "stage bonus that increases by round: 10 for the round of 32, 20 for the round of 16, "
+        "30 for quarter-finals, 40 for semi-finals, and 50 for the champion. "
         "Rankings are based on total points, with teams still alive only used to break ties."
     )
 
@@ -932,6 +1004,12 @@ def _draw_stage_order() -> list[tuple[str, str]]:
         ("final", "Final"),
     ]
 
+
+def _draw_grid_rows(rounds: list[DrawRoundView]) -> int:
+    if not rounds:
+        return 0
+    return max(1, (len(rounds[0].matches) * 2) - 1)
+
 def _ordinal(value: int) -> str:
     if 10 <= value % 100 <= 20:
         return "th"
@@ -1063,7 +1141,7 @@ def _rank_participant_rows(rows: list[ParticipantRowView]) -> list[ParticipantRo
 
 
 def _build_draw_team(
-    match: dict[str, Any],
+    match: dict[str, Any] | None,
     *,
     side: str,
     standings_by_code: dict[str, dict[str, Any]],
@@ -1071,7 +1149,18 @@ def _build_draw_team(
     knockout_context_by_code: dict[str, KnockoutContext],
     team_owners: dict[str, list[str]],
     knockout_active: bool,
+    source_label: str | None = None,
 ) -> DrawTeamView:
+    if match is None:
+        return DrawTeamView(
+            flag="🏳️",
+            team_name="TBD",
+            owner_label=None,
+            source_label=source_label,
+            eliminated=False,
+            won=False,
+            placeholder=True,
+        )
     team_key = f"{side}_team"
     code_key = f"{side}_team_code"
     team_name = str(match.get(team_key) or "TBD")
@@ -1099,6 +1188,79 @@ def _build_draw_team(
         flag=_flag_for_code(team_code),
         team_name=team_name,
         owner_label=_owner_label(team_owners, team_code),
+        source_label=source_label if not team_code else None,
         eliminated=status.label == "Eliminated",
         won=bool(team_code and winner_code and team_code == winner_code),
+        placeholder=not bool(team_code),
     )
+
+
+def _build_draw_match(
+    match: dict[str, Any] | None,
+    *,
+    stage_title: str,
+    stage_key: str,
+    slot_index: int,
+    round_index: int,
+    display_zone: ZoneInfo,
+    standings_by_code: dict[str, dict[str, Any]],
+    group_context_by_code: dict[str, dict[str, Any]],
+    knockout_context_by_code: dict[str, KnockoutContext],
+    team_owners: dict[str, list[str]],
+    knockout_active: bool,
+) -> DrawMatchView:
+    source_gap = 0 if round_index == 0 else 2 ** (round_index - 1)
+    row_start = (2 ** round_index) + (slot_index * (2 ** (round_index + 1)))
+    home_source = _draw_source_label(stage_key, slot_index, side="home")
+    away_source = _draw_source_label(stage_key, slot_index, side="away")
+    return DrawMatchView(
+        stage_label=stage_title,
+        detail=_match_meta(match, display_zone) if match else "Match TBD",
+        row_start=row_start,
+        source_gap=source_gap,
+        round_index=round_index,
+        placeholder=match is None,
+        home_team=_build_draw_team(
+            match,
+            side="home",
+            standings_by_code=standings_by_code,
+            group_context_by_code=group_context_by_code,
+            knockout_context_by_code=knockout_context_by_code,
+            team_owners=team_owners,
+            knockout_active=knockout_active,
+            source_label=home_source,
+        ),
+        away_team=_build_draw_team(
+            match,
+            side="away",
+            standings_by_code=standings_by_code,
+            group_context_by_code=group_context_by_code,
+            knockout_context_by_code=knockout_context_by_code,
+            team_owners=team_owners,
+            knockout_active=knockout_active,
+            source_label=away_source,
+        ),
+    )
+
+
+def _draw_source_label(stage_key: str, slot_index: int, *, side: str) -> str | None:
+    order = [key for key, _ in _draw_stage_order()]
+    if stage_key not in order:
+        return None
+    stage_index = order.index(stage_key)
+    if stage_index == 0:
+        return None
+    previous_stage_key = order[stage_index - 1]
+    previous_stage_short = _draw_stage_short(previous_stage_key)
+    match_number = (slot_index * 2) + (1 if side == "home" else 2)
+    return f"Winner {previous_stage_short} {match_number}"
+
+
+def _draw_stage_short(stage_key: str) -> str:
+    return {
+        "round_of_32": "R32",
+        "round_of_16": "R16",
+        "quarter_finals": "QF",
+        "semi_finals": "SF",
+        "final": "F",
+    }.get(stage_key, stage_key)

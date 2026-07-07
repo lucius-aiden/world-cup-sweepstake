@@ -111,6 +111,17 @@
 
                 <div class="match-blocks">
                   <div>
+                    <span class="stat-label">Top scorer</span>
+                    {% if team.top_scorer %}
+                    <strong>{{ team.top_scorer }}</strong>
+                    {% else %}
+                    <span class="empty-inline">No scorer data yet</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div class="match-blocks">
+                  <div>
                     <span class="stat-label">Last Match</span>
                     {% if team.last_match %}
                     <strong>{{ team.last_match.title }}</strong>
@@ -121,7 +132,9 @@
                   </div>
                   <div>
                     <span class="stat-label">Next Match</span>
-                    {% if team.next_match %}
+                    {% if team.status.label == 'Eliminated' %}
+                    <span class="empty-inline">No next match</span>
+                    {% elif team.next_match %}
                     <strong>{{ team.next_match.title }}</strong>
                     <span>{{ team.next_match.detail }}</span>
                     {% else %}

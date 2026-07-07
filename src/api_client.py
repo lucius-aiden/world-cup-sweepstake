@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import requests
 
 from .configuration import Settings
-from .models import Match, TeamStanding
+from .models import Match, TeamStanding, TopScorer
 from .team_codes import resolve_team_code
 
 LOGGER = logging.getLogger(__name__)
@@ -20,6 +20,10 @@ class FootballDataProvider(ABC):
 
     @abstractmethod
     def fetch_standings(self) -> list[TeamStanding]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def fetch_top_scorers(self) -> list[TopScorer]:
         raise NotImplementedError
 
     @abstractmethod
@@ -79,6 +83,28 @@ class FootballDataOrgProvider(FootballDataProvider):
                 )
                 standings[standing.team_code] = standing
         return sorted(standings.values(), key=lambda item: item.team_name)
+
+    def fetch_top_scorers(self) -> list[TopScorer]:
+        payload = self._get(
+            f"/competitions/{self.settings.competition_code}/scorers",
+            params={"season": self.settings.season, "limit": 500},
+        )
+        scorers: list[TopScorer] = []
+        for item in payload.get("scorers", []):
+            player = item.get("player", {})
+            team = item.get("team", {})
+            team_name = team.get("name") or team.get("shortName") or "Unknown"
+            scorers.append(
+                TopScorer(
+                    player_name=player.get("name") or "Unknown",
+                    team_name=team_name,
+                    team_code=resolve_team_code(team_name, team.get("tla")),
+                    goals=int(item.get("goals") or 0),
+                    assists=int(item.get("assists") or 0),
+                    penalties=int(item.get("penalties") or 0),
+                )
+            )
+        return scorers
 
     def is_completed_status(self, status: str) -> bool:
         return status in {"FINISHED", "FT", "AET", "PEN"}

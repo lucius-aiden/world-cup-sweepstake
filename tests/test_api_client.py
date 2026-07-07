@@ -167,3 +167,56 @@ def test_fetch_played_matches_preserves_penalty_shootout_breakdown(monkeypatch, 
     assert matches[0].extra_away_score == 0
     assert matches[0].penalty_home_score == 4
     assert matches[0].penalty_away_score == 3
+
+
+def test_fetch_top_scorers_maps_player_team_and_totals(monkeypatch, tmp_path):
+    settings = Settings(
+        raw={
+            "app": {"name": "world-cup-sweepstake"},
+            "tournament": {"name": "FIFA World Cup 2026", "competition_code": "WC", "season": 2026},
+            "football_api": {
+                "provider": "football_data",
+                "base_url": "https://example.com",
+                "api_key_env": "FOOTBALL_DATA_API_KEY",
+                "timeout_seconds": 30,
+            },
+            "storage": {
+                "database_path": "data/test.db",
+                "participants_csv": "config/participants.csv",
+                "leaderboard_output": "output/leaderboard.xlsx",
+                "site_output": "site",
+            },
+            "teams": {"notifier": "console"},
+            "job": {},
+        },
+        root_dir=tmp_path,
+    )
+    provider = FootballDataOrgProvider.__new__(FootballDataOrgProvider)
+    provider.settings = settings
+    provider.base_url = "https://example.com"
+    provider.session = None
+    monkeypatch.setattr(
+        provider,
+        "_get",
+        lambda path, params=None: {
+            "scorers": [
+                {
+                    "player": {"name": "Kylian Mbappe"},
+                    "team": {"name": "France", "tla": "FRA"},
+                    "goals": 6,
+                    "assists": 2,
+                    "penalties": 1,
+                }
+            ]
+        },
+    )
+
+    scorers = provider.fetch_top_scorers()
+
+    assert len(scorers) == 1
+    assert scorers[0].player_name == "Kylian Mbappe"
+    assert scorers[0].team_name == "France"
+    assert scorers[0].team_code == "FRA"
+    assert scorers[0].goals == 6
+    assert scorers[0].assists == 2
+    assert scorers[0].penalties == 1

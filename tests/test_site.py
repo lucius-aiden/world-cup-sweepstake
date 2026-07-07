@@ -47,6 +47,14 @@ class StubProvider:
             TeamStanding("MEX", "Mexico", "Group B", 1, 3, 2, 1, 0, 6, 2, 4, 7, True, "Qualified"),
         ]
 
+    def fetch_top_scorers(self):
+        from src.models import TopScorer
+
+        return [
+            TopScorer("Kylian Mbappe", "France", "FRA", 6, 2, 1),
+            TopScorer("Vinicius Junior", "Brazil", "BRA", 4, 3, 0),
+        ]
+
     def is_completed_status(self, status: str) -> bool:
         return status == "FINISHED"
 
@@ -108,8 +116,11 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert 'src="../static/leaderboard.js"' in leaderboard_html
     assert "How Scoring Works" in leaderboard_html
     assert "Each participant has two teams." in leaderboard_html
-    assert "10-point bonus for each knockout match they win" in leaderboard_html
-    assert "up to 50 points for the champion" in leaderboard_html
+    assert "10 for the round of 32" in leaderboard_html
+    assert "50 for the champion" in leaderboard_html
+    assert "Top Scorers" in index_html
+    assert "Kylian Mbappe" in index_html
+    assert "Top scorer" in leaderboard_html
     assert "Tournament win odds" not in leaderboard_html
     assert "Current leader:" in daily_message
 

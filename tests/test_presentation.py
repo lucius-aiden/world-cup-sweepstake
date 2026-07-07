@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from src.models import TeamOdds
+from src.models import TeamOdds, TopScorer
 from src.presentation import build_dashboard_view, determine_team_status
 
 
@@ -86,6 +86,10 @@ def test_dashboard_view_builds_expandable_team_card_data():
         leaderboard_inputs=inputs,
         standings_rows=standings,
         matches_rows=matches,
+        top_scorers=[
+            TopScorer("Vinicius Junior", "Brazil", "BRA", 4, 3, 0),
+            TopScorer("Rico Lewis", "England", "ENG", 1, 0, 0),
+        ],
         odds_by_team={"BRA": TeamOdds("BRA", "Brazil", 5.5)},
         now=datetime(2026, 6, 23, 7, 0, tzinfo=UTC),
     )
@@ -98,8 +102,10 @@ def test_dashboard_view_builds_expandable_team_card_data():
     assert row.team_1.form == ["W"]
     assert row.team_1.last_match is not None
     assert row.team_1.next_match is not None
+    assert row.team_1.top_scorer == "Vinicius Junior (4 goals)"
+    assert row.team_2.top_scorer is None
     assert row.team_1.win_odds == "1 in 6 chance (18.2%)"
-    assert "10-point bonus for each knockout match they win" in view.leaderboard_blurb
+    assert "10 for the round of 32" in view.leaderboard_blurb
     assert view.home_href == "/"
 
 
@@ -225,6 +231,53 @@ def test_dashboard_view_formats_penalty_shootouts_without_looking_like_goal_fest
     assert section_map["Latest Knockouts"].items[0].detail.startswith("Quarter-finals · England 1-1 Japan (pens 4-3)")
 
 
+def test_eliminated_team_card_hides_next_match():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Brazil", "team_code": "BRA", "points": 7, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[
+            {"team_code": "BRA", "team_name": "Brazil", "group_name": "Group A", "group_position": 1, "played": 3, "won": 2, "drawn": 1, "lost": 0, "goals_for": 5, "goals_against": 2, "goal_difference": 3, "points": 7, "alive": 0, "qualification_status": "Eliminated"},
+            {"team_code": "FRA", "team_name": "France", "group_name": "Group B", "group_position": 1, "played": 3, "won": 2, "drawn": 0, "lost": 1, "goals_for": 6, "goals_against": 3, "goal_difference": 3, "points": 6, "alive": 1, "qualification_status": "Qualified"},
+        ],
+        matches_rows=[
+            {
+                "match_id": "1",
+                "home_team": "Brazil",
+                "home_team_code": "BRA",
+                "away_team": "Japan",
+                "away_team_code": "JPN",
+                "home_score": 1,
+                "away_score": 2,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 7, 1, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": "AWAY_TEAM",
+            },
+            {
+                "match_id": "2",
+                "home_team": "France",
+                "home_team_code": "FRA",
+                "away_team": "Spain",
+                "away_team_code": "ESP",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 6, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "QUARTER_FINALS",
+            },
+        ],
+        now=datetime(2026, 7, 2, 12, 0, tzinfo=UTC),
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_1.status.label == "Eliminated"
+    assert row.team_1.next_match is None
+    assert row.team_2.next_match is not None
+
+
 def test_qualified_group_team_keeps_group_label_until_knockout_match_exists():
     view = build_dashboard_view(
         settings=StubSettings(),
@@ -297,17 +350,63 @@ def test_dashboard_view_orders_homepage_sections_and_dev_links():
         ],
         standings_rows=[],
         matches_rows=[],
+        top_scorers=[TopScorer("Kylian Mbappe", "France", "FRA", 6, 2, 1)],
         site_base_path="/dev",
     )
 
     assert [section.title for section in view.insight_sections] == [
         "Top Matches",
         "Today's Key Fixtures",
+        "Top Scorers",
         "Best Performing Teams",
         "Teams In Trouble",
         "Latest Results",
     ]
     assert view.home_href == "/dev/"
+
+
+def test_top_scorers_section_uses_competition_scorer_feed():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[],
+        top_scorers=[
+            TopScorer("Kylian Mbappe", "France", "FRA", 6, 2, 1),
+            TopScorer("Vinicius Junior", "Brazil", "BRA", 4, 3, 0),
+        ],
+    )
+
+    section_map = {section.title: section for section in view.insight_sections}
+    assert [item.title for item in section_map["Top Scorers"].items] == [
+        "🇫🇷 Kylian Mbappe",
+        "🇧🇷 Vinicius Junior",
+    ]
+    assert section_map["Top Scorers"].items[0].detail == "France [Alice] · 6 goals · 2 assists · 1 pens"
+
+
+def test_team_card_uses_highest_goal_scorer_for_each_team():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "France", "team_code": "FRA", "points": 6, "alive": 1},
+            {"player": "Alice", "team_slot": 2, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=[],
+        top_scorers=[
+            TopScorer("Kylian Mbappe", "France", "FRA", 6, 2, 1),
+            TopScorer("Ousmane Dembele", "France", "FRA", 4, 4, 0),
+            TopScorer("Vinicius Junior", "Brazil", "BRA", 4, 3, 0),
+        ],
+    )
+
+    row = view.leaderboard_rows[0]
+    assert row.team_1.top_scorer == "Kylian Mbappe (6 goals)"
+    assert row.team_2.top_scorer == "Vinicius Junior (4 goals)"
 
 
 def test_form_runs_left_to_right_in_match_order():
@@ -581,9 +680,9 @@ def test_knockout_rankings_keep_group_points_and_add_heavy_stage_bonus():
     )
 
     assert [row.player for row in view.leaderboard_rows] == ["Alice", "Bob", "Cara"]
-    assert view.leaderboard_rows[0].total_points == 43
-    assert view.leaderboard_rows[1].total_points == 32
-    assert view.leaderboard_rows[2].total_points == 32
+    assert view.leaderboard_rows[0].total_points == 63
+    assert view.leaderboard_rows[1].total_points == 52
+    assert view.leaderboard_rows[2].total_points == 42
     assert view.leaderboard_rows[0].team_1.group_label == "Eliminated in Round of 16"
     assert view.leaderboard_rows[0].team_2.group_label == "Quarter-finals"
     assert view.leaderboard_rows[2].team_1.group_label == "Quarter-finals"
@@ -821,7 +920,13 @@ def test_draw_view_builds_rounds_and_marks_winners_and_eliminations():
         ],
     )
 
-    assert [round_view.title for round_view in view.draw_rounds] == ["Round of 32", "Round of 16"]
+    assert [round_view.title for round_view in view.draw_rounds] == [
+        "Round of 32",
+        "Round of 16",
+        "Quarter-finals",
+        "Semi-finals",
+        "Final",
+    ]
     first_match = view.draw_rounds[0].matches[0]
     assert first_match.home_team.won is True
     assert first_match.away_team.eliminated is True
@@ -829,6 +934,10 @@ def test_draw_view_builds_rounds_and_marks_winners_and_eliminations():
     second_match = view.draw_rounds[1].matches[0]
     assert second_match.home_team.team_name == "Belgium"
     assert second_match.away_team.team_name == "Iraq"
+    assert view.draw_grid_rows == 1
+    assert view.draw_rounds[2].matches[0].placeholder is True
+    assert view.draw_rounds[2].matches[0].home_team.team_name == "TBD"
+    assert view.draw_rounds[2].matches[0].home_team.source_label == "Winner R16 1"
 
 
 def test_draw_href_is_exposed_in_dashboard_view():
@@ -891,5 +1000,5 @@ def test_team_one_stage_further_always_beats_group_stage_gap():
     )
 
     assert [row.player for row in view.leaderboard_rows] == ["Bob", "Alice"]
-    assert view.leaderboard_rows[0].total_points == 20
-    assert view.leaderboard_rows[1].total_points == 19
+    assert view.leaderboard_rows[0].total_points == 30
+    assert view.leaderboard_rows[1].total_points == 29

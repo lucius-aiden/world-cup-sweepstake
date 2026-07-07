@@ -157,15 +157,15 @@ def is_knockout_stage(stage: Any) -> bool:
 def stage_bonus(stage: Any) -> int:
     value = str(stage or "").upper()
     if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
-        return 40
+        return 50
     if "SEMI" in value:
-        return 30
+        return 40
     if "QUARTER" in value:
-        return 20
+        return 30
     if "16" in value:
-        return 10
+        return 20
     if "32" in value or "PLAYOFF" in value:
-        return 0
+        return 10
     return 0
 
 

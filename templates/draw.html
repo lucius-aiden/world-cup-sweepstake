@@ -46,7 +46,7 @@
         </div>
         {% if view.draw_rounds %}
         <div class="draw-scroll">
-          <div class="draw-grid">
+          <div class="draw-grid" style="--draw-grid-rows: {{ view.draw_grid_rows }};">
             {% for round in view.draw_rounds %}
             <section class="draw-round">
               <div class="draw-round-header">
@@ -54,20 +54,24 @@
               </div>
               <div class="draw-match-list">
                 {% for match in round.matches %}
-                <article class="draw-match">
+                <article class="draw-match{% if match.round_index > 0 %} draw-match-linked{% endif %}{% if match.placeholder %} draw-match-placeholder{% endif %}" style="grid-row: {{ match.row_start }} / span 1; --draw-source-gap: {{ match.source_gap }};">
                   <div class="draw-match-meta">{{ match.detail }}</div>
                   {% for team in [match.home_team, match.away_team] %}
-                  <div class="draw-team{% if team.eliminated %} draw-team-eliminated{% endif %}{% if team.won %} draw-team-won{% endif %}">
+                  <div class="draw-team{% if team.eliminated %} draw-team-eliminated{% endif %}{% if team.won %} draw-team-won{% endif %}{% if team.placeholder %} draw-team-placeholder{% endif %}">
                     <div class="draw-team-main">
                       <span class="draw-team-name">{{ team.flag }} {{ team.team_name }}</span>
                       {% if team.owner_label %}
                       <span class="draw-team-owner">{{ team.owner_label }}</span>
+                      {% elif team.source_label %}
+                      <span class="draw-team-owner draw-team-source">{{ team.source_label }}</span>
                       {% endif %}
                     </div>
                     {% if team.won %}
                     <span class="draw-team-badge">Won</span>
                     {% elif team.eliminated %}
                     <span class="draw-team-badge">Out</span>
+                    {% elif team.placeholder %}
+                    <span class="draw-team-badge">TBD</span>
                     {% endif %}
                   </div>
                   {% endfor %}

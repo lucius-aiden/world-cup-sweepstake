@@ -63,6 +63,16 @@ class TeamOdds:
 
 
 @dataclass(frozen=True)
+class TopScorer:
+    player_name: str
+    team_name: str
+    team_code: str
+    goals: int
+    assists: int
+    penalties: int
+
+
+@dataclass(frozen=True)
 class LeaderboardRow:
     player: str
     team_1: str

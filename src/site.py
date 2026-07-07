@@ -98,11 +98,13 @@ def build_dashboard_view_from_database(
     now: datetime | None = None,
 ):
     odds_provider = build_odds_provider(settings)
+    provider = build_provider(settings)
     return build_dashboard_view(
         settings=settings,
         leaderboard_inputs=[dict(row) for row in database.fetch_leaderboard_inputs(connection)],
         standings_rows=[dict(row) for row in database.fetch_team_standings(connection)],
         matches_rows=[dict(row) for row in database.fetch_all_matches(connection)],
+        top_scorers=provider.fetch_top_scorers(),
         odds_by_team=odds_provider.fetch_tournament_winner_odds(),
         site_base_path=site_base_path,
         now=now or datetime.now(UTC),
