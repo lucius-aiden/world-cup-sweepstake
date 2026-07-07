@@ -530,47 +530,41 @@ h3 {
 
 .draw-panel {
   padding: 18px;
-}
-
-.draw-scroll {
-  overflow-x: auto;
-  padding: 4px 6px 12px 2px;
-  scroll-snap-type: x proximity;
-}
-
-.draw-scroll::-webkit-scrollbar {
-  height: 10px;
-}
-
-.draw-scroll::-webkit-scrollbar-thumb {
-  background: rgba(216, 171, 17, 0.26);
+  overflow: visible;
 }
 
 .draw-grid {
-  --draw-row-size: 100px;
-  --draw-row-gap: 16px;
-  --draw-column-gap: 26px;
-  --draw-link-offset: calc(var(--draw-column-gap) / 2);
+  --draw-row-size: 102px;
+  --draw-row-gap: 18px;
+  --draw-column-gap: 30px;
+  --draw-link-lane: 16px;
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(232px, 244px);
+  grid-template-columns: repeat(var(--draw-round-count, 1), minmax(0, 1fr));
   gap: var(--draw-column-gap);
   align-items: start;
+  overflow: visible;
 }
 
 .draw-round {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 12px;
-  scroll-snap-align: start;
+  gap: 14px;
+  min-width: 0;
 }
 
 .draw-round-header {
+  min-height: 72px;
   padding: 12px 14px;
   border: 1px solid var(--line-soft);
   background:
     linear-gradient(135deg, rgba(244, 198, 41, 0.12), rgba(10, 10, 10, 0.96) 54%),
     var(--panel-soft);
+  display: flex;
+  align-items: flex-end;
+}
+
+.draw-round-header h3 {
+  margin: 0;
 }
 
 .draw-match-list {
@@ -578,12 +572,14 @@ h3 {
   grid-template-rows: repeat(var(--draw-grid-rows, 1), var(--draw-row-size));
   gap: var(--draw-row-gap);
   position: relative;
+  padding-top: 4px;
 }
 
 .draw-match {
   display: grid;
+  grid-template-rows: auto 1fr;
   align-self: center;
-  gap: 10px;
+  gap: 8px;
   min-height: var(--draw-row-size);
   padding: 12px;
   border: 1px solid rgba(216, 171, 17, 0.24);
@@ -596,6 +592,13 @@ h3 {
 }
 
 .draw-match-meta {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(244, 198, 41, 0.08);
   color: var(--muted);
   font-size: 0.78rem;
   letter-spacing: 0.05em;
@@ -603,21 +606,29 @@ h3 {
   text-transform: uppercase;
 }
 
-.draw-match-linked::after {
+.draw-match-teams {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 0;
+  position: relative;
+}
+
+.draw-match-linked .draw-match-teams::before {
   content: "";
   position: absolute;
-  left: calc(var(--draw-link-offset) * -1);
+  left: calc(var(--draw-link-lane) * -1);
   top: calc(50% - (var(--draw-source-gap, 0) * (var(--draw-row-size) + var(--draw-row-gap))));
   height: calc(var(--draw-source-gap, 0) * 2 * (var(--draw-row-size) + var(--draw-row-gap)));
   border-left: 2px solid rgba(216, 171, 17, 0.5);
 }
 
-.draw-match-advances::before {
+.draw-match-advances .draw-match-teams::after {
   content: "";
   position: absolute;
-  right: calc(var(--draw-link-offset) * -1);
+  right: calc(var(--draw-link-lane) * -1);
   top: 50%;
-  width: var(--draw-link-offset);
+  width: calc(var(--draw-link-lane) + 1px);
   border-top: 2px solid rgba(216, 171, 17, 0.38);
 }
 
@@ -644,9 +655,9 @@ h3 {
 .draw-team-connected::before {
   content: "";
   position: absolute;
-  left: calc(var(--draw-link-offset) * -1);
+  left: calc(var(--draw-link-lane) * -1);
   top: 50%;
-  width: var(--draw-link-offset);
+  width: calc(var(--draw-link-lane) + 1px);
   border-top: 2px solid rgba(216, 171, 17, 0.5);
 }
 
@@ -759,10 +770,10 @@ h3 {
   }
 
   .draw-grid {
-    --draw-row-size: 88px;
-    --draw-row-gap: 12px;
+    --draw-row-size: 92px;
+    --draw-row-gap: 14px;
     --draw-column-gap: 18px;
-    grid-auto-columns: minmax(224px, 86vw);
+    --draw-link-lane: 12px;
   }
 
   .draw-match {
@@ -795,14 +806,40 @@ h3 {
     grid-template-columns: 1fr;
   }
 
-  .draw-scroll {
-    padding-right: 2px;
+  .draw-grid {
+    display: block;
   }
 
-  .draw-grid {
-    --draw-row-size: 82px;
-    --draw-row-gap: 10px;
-    --draw-column-gap: 14px;
-    grid-auto-columns: minmax(214px, 90vw);
+  .draw-round {
+    gap: 12px;
+  }
+
+  .draw-round + .draw-round {
+    margin-top: 22px;
+  }
+
+  .draw-round-header {
+    min-height: 0;
+  }
+
+  .draw-match-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 0;
+  }
+
+  .draw-match {
+    min-height: auto;
+  }
+
+  .draw-match-teams {
+    gap: 7px;
+  }
+
+  .draw-match-linked .draw-match-teams::before,
+  .draw-match-advances .draw-match-teams::after,
+  .draw-team-connected::before {
+    content: none;
   }
 }
