@@ -1,0 +1,6 @@
+Current leader: Sarah J (56 pts)
+Best performing teams: 🇫🇷 France [Jian], 🇪🇸 Spain [Patricia L], 🏴󠁧󠁢󠁥󠁮󠁧󠁿 England [Sarah T]
+Teams in trouble: 🇺🇸 United States [Sadhana], 🇵🇹 Portugal [Savino], 🇲🇽 Mexico [Sarah J]
+Biggest team changes: 🇧🇪 Belgium, 🏴󠁧󠁢󠁥󠁮󠁧󠁿 England
+Today's key fixtures: 🇦🇷 Argentina vs 🇪🇬 Egypt, 🇨🇭 Switzerland vs 🇨🇴 Colombia
+Full leaderboard: /dev/leaderboard/
