@@ -940,6 +940,159 @@ def test_draw_view_builds_rounds_and_marks_winners_and_eliminations():
     assert view.draw_rounds[2].matches[0].home_team.source_label == "Winner R16 1"
 
 
+def test_draw_view_orders_knockout_slots_by_predecessor_matches_not_kickoff_time():
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[],
+        standings_rows=[],
+        matches_rows=[
+            {
+                "match_id": "r32-1",
+                "home_team": "Brazil",
+                "home_team_code": "BRA",
+                "away_team": "Japan",
+                "away_team_code": "JPN",
+                "home_score": 2,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "r32-2",
+                "home_team": "Spain",
+                "home_team_code": "ESP",
+                "away_team": "Mexico",
+                "away_team_code": "MEX",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 29, 16, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "r32-3",
+                "home_team": "Germany",
+                "home_team_code": "GER",
+                "away_team": "Norway",
+                "away_team_code": "NOR",
+                "home_score": 3,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 30, 12, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "r32-4",
+                "home_team": "France",
+                "home_team_code": "FRA",
+                "away_team": "USA",
+                "away_team_code": "USA",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, 30, 16, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_32",
+                "winner": "HOME_TEAM",
+            },
+            {
+                "match_id": "r16-late",
+                "home_team": "Germany",
+                "home_team_code": "GER",
+                "away_team": "France",
+                "away_team_code": "FRA",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 3, 20, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": None,
+            },
+            {
+                "match_id": "r16-early",
+                "home_team": "Brazil",
+                "home_team_code": "BRA",
+                "away_team": "Spain",
+                "away_team_code": "ESP",
+                "home_score": None,
+                "away_score": None,
+                "status": "TIMED",
+                "match_date": datetime(2026, 7, 3, 16, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": None,
+            },
+        ],
+    )
+
+    round_of_16 = view.draw_rounds[1].matches
+    assert round_of_16[0].home_team.team_name == "Brazil"
+    assert round_of_16[0].away_team.team_name == "Spain"
+    assert round_of_16[1].home_team.team_name == "Germany"
+    assert round_of_16[1].away_team.team_name == "France"
+
+
+def test_latest_results_expand_to_balanced_two_row_snapshot_when_knockouts_exist():
+    matches_rows = []
+    for match_number in range(1, 11):
+        matches_rows.append(
+            {
+                "match_id": f"group-{match_number}",
+                "home_team": f"Home {match_number}",
+                "home_team_code": f"H{match_number:02d}",
+                "away_team": f"Away {match_number}",
+                "away_team_code": f"A{match_number:02d}",
+                "home_score": 2,
+                "away_score": 1,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 6, match_number, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "GROUP_STAGE",
+                "winner": "HOME_TEAM",
+            }
+        )
+    for match_number in range(1, 6):
+        matches_rows.append(
+            {
+                "match_id": f"ko-{match_number}",
+                "home_team": f"Knockout Home {match_number}",
+                "home_team_code": f"K{match_number:02d}",
+                "away_team": f"Knockout Away {match_number}",
+                "away_team_code": f"L{match_number:02d}",
+                "home_score": 1,
+                "away_score": 0,
+                "status": "FINISHED",
+                "match_date": datetime(2026, 7, match_number, 18, 0, tzinfo=UTC).isoformat(),
+                "stage": "LAST_16",
+                "winner": "HOME_TEAM",
+            }
+        )
+
+    view = build_dashboard_view(
+        settings=StubSettings(),
+        leaderboard_inputs=[
+            {"player": "Alice", "team_slot": 1, "team_name": "Knockout Away 1", "team_code": "L01", "points": 0, "alive": 0},
+            {"player": "Alice", "team_slot": 2, "team_name": "Knockout Home 1", "team_code": "K01", "points": 0, "alive": 1},
+            {"player": "Bob", "team_slot": 1, "team_name": "Knockout Away 2", "team_code": "L02", "points": 0, "alive": 0},
+            {"player": "Bob", "team_slot": 2, "team_name": "Knockout Home 2", "team_code": "K02", "points": 0, "alive": 1},
+            {"player": "Cara", "team_slot": 1, "team_name": "Knockout Away 3", "team_code": "L03", "points": 0, "alive": 0},
+            {"player": "Cara", "team_slot": 2, "team_name": "Knockout Home 3", "team_code": "K03", "points": 0, "alive": 1},
+            {"player": "Dan", "team_slot": 1, "team_name": "Knockout Away 4", "team_code": "L04", "points": 0, "alive": 0},
+            {"player": "Dan", "team_slot": 2, "team_name": "Knockout Home 4", "team_code": "K04", "points": 0, "alive": 1},
+            {"player": "Eve", "team_slot": 1, "team_name": "Knockout Away 5", "team_code": "L05", "points": 0, "alive": 0},
+            {"player": "Eve", "team_slot": 2, "team_name": "Knockout Home 5", "team_code": "K05", "points": 0, "alive": 1},
+        ],
+        standings_rows=[],
+        matches_rows=matches_rows,
+        now=datetime(2026, 7, 6, 7, 0, tzinfo=UTC),
+    )
+
+    section_map = {section.title: section for section in view.insight_sections}
+    assert len(section_map["Latest Knockouts"].items) == 5
+    assert len(section_map["Latest Results"].items) == 10
+
+
 def test_draw_href_is_exposed_in_dashboard_view():
     view = build_dashboard_view(
         settings=StubSettings(),

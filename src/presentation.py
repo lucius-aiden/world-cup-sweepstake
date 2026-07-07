@@ -514,7 +514,10 @@ def _build_insight_sections(
                 str(row["team_name"]).lower(),
             ),
         )[:5]
-    latest_results_limit = max(1, len(latest_knockouts)) if latest_knockouts else 5
+    latest_results_limit = _latest_results_limit(
+        len(latest_results),
+        len(latest_knockouts),
+    )
     top_match_count = len(upcoming_today) if upcoming_today else 3
     biggest_winners = sorted(
         [match for match in completed_recent if _goal_margin(match) > 0],
@@ -607,7 +610,7 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Latest Results",
-            description="Latest results show the most recent completed matches, trimmed to keep pace with the knockout view.",
+            description="Latest results show a balanced two-row snapshot of the most recent completed matches.",
             items=[
                 InsightItemView(
                     title=_match_scoreline(match),
@@ -618,6 +621,20 @@ def _build_insight_sections(
             empty_message="Waiting for the first result.",
         ),
     ]
+
+
+def _latest_results_limit(total_completed: int, latest_knockouts_count: int) -> int:
+    if total_completed <= 0:
+        return 0
+    if total_completed < 4:
+        return total_completed
+
+    target = latest_knockouts_count * 2 if latest_knockouts_count else 8
+    target = max(4, min(10, target))
+    target = min(target, total_completed)
+    if target % 2 == 1:
+        target -= 1
+    return max(4, target)
 
 
 def _build_draw_rounds(
@@ -631,13 +648,8 @@ def _build_draw_rounds(
     knockout_active: bool,
 ) -> list[DrawRoundView]:
     matches_by_stage: dict[str, list[dict[str, Any]]] = {
-        stage_key: sorted(
-            [
-                dict(match)
-                for match in matches_rows
-                if _draw_stage_key(match.get("stage")) == stage_key
-            ],
-            key=lambda match: str(match["match_date"]),
+        stage_key: _sort_draw_matches(
+            [dict(match) for match in matches_rows if _draw_stage_key(match.get("stage")) == stage_key]
         )
         for stage_key, _ in _draw_stage_order()
     }
@@ -650,15 +662,18 @@ def _build_draw_rounds(
         return []
 
     first_stage_index = min(present_stage_indexes)
-    previous_count = len(matches_by_stage[_draw_stage_order()[first_stage_index][0]])
+    previous_slots = matches_by_stage[_draw_stage_order()[first_stage_index][0]]
     rounds: list[DrawRoundView] = []
     for absolute_index, (stage_key, stage_title) in enumerate(_draw_stage_order()[first_stage_index:], start=first_stage_index):
         stage_matches = matches_by_stage[stage_key]
-        expected_count = max(len(stage_matches), previous_count)
         relative_round_index = absolute_index - first_stage_index
+        if relative_round_index == 0:
+            ordered_stage_matches = stage_matches
+        else:
+            expected_count = max(len(stage_matches), max(1, (len(previous_slots) + 1) // 2))
+            ordered_stage_matches = _order_draw_stage_matches(stage_matches, previous_slots, expected_count)
         match_views: list[DrawMatchView] = []
-        for slot_index in range(expected_count):
-            match = stage_matches[slot_index] if slot_index < len(stage_matches) else None
+        for slot_index, match in enumerate(ordered_stage_matches):
             match_views.append(
                 _build_draw_match(
                     match,
@@ -674,7 +689,7 @@ def _build_draw_rounds(
                     knockout_active=knockout_active,
                 )
             )
-        previous_count = max(1, (expected_count + 1) // 2)
+        previous_slots = ordered_stage_matches
         rounds.append(
             DrawRoundView(
                 title=stage_title,
@@ -682,6 +697,102 @@ def _build_draw_rounds(
             )
         )
     return rounds
+
+
+def _sort_draw_matches(matches: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        matches,
+        key=lambda match: (
+            str(match["match_date"]),
+            str(match.get("home_team") or ""),
+            str(match.get("away_team") or ""),
+            str(match.get("match_id") or ""),
+        ),
+    )
+
+
+def _order_draw_stage_matches(
+    stage_matches: list[dict[str, Any]],
+    previous_slots: list[dict[str, Any] | None],
+    slot_count: int,
+) -> list[dict[str, Any] | None]:
+    ordered_slots: list[dict[str, Any] | None] = [None] * slot_count
+    if not stage_matches:
+        return ordered_slots
+
+    pair_codes = [_draw_pair_team_codes(previous_slots, slot_index) for slot_index in range(slot_count)]
+    match_candidates: list[tuple[int, int, int, dict[str, Any], list[int]]] = []
+    for stable_index, match in enumerate(stage_matches):
+        team_codes = _draw_match_team_codes(match)
+        scored_slots = sorted(
+            (
+                (_draw_pair_match_score(team_codes, pair_codes[slot_index]), slot_index)
+                for slot_index in range(slot_count)
+            ),
+            key=lambda item: (-item[0], item[1]),
+        )
+        ranked_slots = [slot_index for score, slot_index in scored_slots if score > 0]
+        best_score = _draw_pair_match_score(team_codes, pair_codes[ranked_slots[0]]) if ranked_slots else 0
+        match_candidates.append((best_score, len(ranked_slots), stable_index, match, ranked_slots))
+
+    placed_indexes: set[int] = set()
+    for _, _, stable_index, match, ranked_slots in sorted(
+        match_candidates,
+        key=lambda item: (-item[0], item[1], item[2]),
+    ):
+        for slot_index in ranked_slots:
+            if ordered_slots[slot_index] is None:
+                ordered_slots[slot_index] = match
+                placed_indexes.add(stable_index)
+                break
+
+    remaining_matches = [
+        match
+        for _, _, stable_index, match, _ in match_candidates
+        if stable_index not in placed_indexes
+    ]
+    remaining_iter = iter(remaining_matches)
+    for slot_index, value in enumerate(ordered_slots):
+        if value is None:
+            ordered_slots[slot_index] = next(remaining_iter, None)
+    return ordered_slots
+
+
+def _draw_match_team_codes(match: dict[str, Any] | None) -> set[str]:
+    if not match:
+        return set()
+    return {
+        team_code
+        for team_code in (
+            str(match.get("home_team_code") or ""),
+            str(match.get("away_team_code") or ""),
+        )
+        if team_code
+    }
+
+
+def _draw_pair_team_codes(previous_slots: list[dict[str, Any] | None], slot_index: int) -> set[str]:
+    pair_codes: set[str] = set()
+    for previous_index in (slot_index * 2, (slot_index * 2) + 1):
+        if previous_index >= len(previous_slots):
+            continue
+        previous_match = previous_slots[previous_index]
+        pair_codes.update(_draw_match_team_codes(previous_match))
+        winner_code = _winner_code(previous_match) if previous_match else None
+        if winner_code:
+            pair_codes.add(winner_code)
+    return pair_codes
+
+
+def _draw_pair_match_score(team_codes: set[str], pair_codes: set[str]) -> int:
+    if not team_codes or not pair_codes:
+        return 0
+    overlap = len(team_codes & pair_codes)
+    if overlap == 2:
+        return 4
+    if overlap == 1:
+        return 2
+    return 0
 
 
 def _last_match(matches: list[dict[str, Any]], display_zone: ZoneInfo) -> MatchSummaryView | None:

@@ -505,8 +505,27 @@ h3 {
 
 .insight-list-results {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 18px;
+  grid-template-columns: repeat(var(--results-columns, 4), minmax(0, 1fr));
+  gap: 12px;
+}
+
+.insight-list-results .insight-item {
+  min-height: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(216, 171, 17, 0.2);
+  background:
+    linear-gradient(180deg, rgba(244, 198, 41, 0.06), rgba(15, 15, 15, 0.9)),
+    rgba(15, 15, 15, 0.92);
+}
+
+.insight-list-results .insight-item:first-child {
+  border-top: 1px solid rgba(216, 171, 17, 0.2);
+  padding-top: 12px;
+}
+
+.insight-list-results .insight-item strong {
+  margin-bottom: 6px;
+  font-size: 0.96rem;
 }
 
 .draw-panel {
@@ -515,23 +534,33 @@ h3 {
 
 .draw-scroll {
   overflow-x: auto;
-  padding-bottom: 8px;
+  padding: 4px 6px 12px 2px;
+  scroll-snap-type: x proximity;
+}
+
+.draw-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.draw-scroll::-webkit-scrollbar-thumb {
+  background: rgba(216, 171, 17, 0.26);
 }
 
 .draw-grid {
-  --draw-row-size: 116px;
-  --draw-row-gap: 14px;
+  --draw-row-size: 100px;
+  --draw-row-gap: 16px;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(240px, 248px);
-  gap: 20px;
+  grid-auto-columns: minmax(232px, 244px);
+  gap: 26px;
   align-items: start;
 }
 
 .draw-round {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 14px;
+  gap: 12px;
+  scroll-snap-align: start;
 }
 
 .draw-round-header {
@@ -552,33 +581,49 @@ h3 {
 .draw-match {
   display: grid;
   align-self: center;
-  gap: 8px;
+  gap: 10px;
   min-height: var(--draw-row-size);
-  padding: 10px 12px;
-  border: 1px solid rgba(216, 171, 17, 0.2);
-  background: rgba(10, 10, 10, 0.84);
+  padding: 12px;
+  border: 1px solid rgba(216, 171, 17, 0.24);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(244, 198, 41, 0.06), rgba(10, 10, 10, 0.94) 38%),
+    rgba(10, 10, 10, 0.9);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
   position: relative;
 }
 
 .draw-match-meta {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
   line-height: 1.3;
+  text-transform: uppercase;
 }
 
 .draw-match-linked::after {
   content: "";
   position: absolute;
-  left: -20px;
+  left: -18px;
   top: calc(50% - (var(--draw-source-gap, 0) * (var(--draw-row-size) + var(--draw-row-gap))));
   height: calc(var(--draw-source-gap, 0) * 2 * (var(--draw-row-size) + var(--draw-row-gap)));
-  border-left: 2px solid rgba(216, 171, 17, 0.42);
+  border-left: 2px solid rgba(216, 171, 17, 0.5);
+}
+
+.draw-match-advances::before {
+  content: "";
+  position: absolute;
+  right: -26px;
+  top: 50%;
+  width: 26px;
+  border-top: 2px solid rgba(216, 171, 17, 0.38);
 }
 
 .draw-match-placeholder {
   border-style: dashed;
   border-color: rgba(216, 171, 17, 0.18);
-  background: rgba(15, 15, 15, 0.72);
+  background: rgba(15, 15, 15, 0.74);
+  box-shadow: none;
 }
 
 .draw-team {
@@ -586,8 +631,10 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
+  min-height: 54px;
+  padding: 11px 12px;
   border: 1px solid rgba(216, 171, 17, 0.18);
+  border-radius: 14px;
   background: rgba(130, 101, 8, 0.12);
   position: relative;
 }
@@ -595,26 +642,28 @@ h3 {
 .draw-team-connected::before {
   content: "";
   position: absolute;
-  left: -20px;
+  left: -18px;
   top: 50%;
-  width: 20px;
-  border-top: 2px solid rgba(216, 171, 17, 0.42);
+  width: 18px;
+  border-top: 2px solid rgba(216, 171, 17, 0.5);
 }
 
 .draw-team-main {
   display: grid;
-  gap: 4px;
+  gap: 3px;
+  min-width: 0;
 }
 
 .draw-team-name {
   font-family: "Barlow Condensed", sans-serif;
-  font-size: 1.05rem;
+  font-size: 1.08rem;
   letter-spacing: 0.04em;
+  line-height: 1;
 }
 
 .draw-team-owner {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
 }
 
 .draw-team-source {
@@ -627,6 +676,8 @@ h3 {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+  font-size: 0.88rem;
+  white-space: nowrap;
 }
 
 .draw-team-won {
@@ -655,11 +706,6 @@ h3 {
 
 .draw-team-placeholder .draw-team-name {
   color: #d0c7a6;
-}
-
-.insight-list-results .insight-item:nth-child(2) {
-  border-top: 0;
-  padding-top: 0;
 }
 
 @media (max-width: 980px) {
@@ -707,18 +753,68 @@ h3 {
   }
 
   .insight-list-results {
-    grid-template-columns: 1fr;
-  }
-
-  .insight-list-results .insight-item:nth-child(2) {
-    border-top: 1px solid rgba(216, 171, 17, 0.2);
-    padding-top: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .draw-grid {
-    --draw-row-size: 102px;
+    --draw-row-size: 88px;
     --draw-row-gap: 12px;
-    grid-auto-columns: minmax(212px, 82vw);
-    gap: 16px;
+    grid-auto-columns: minmax(224px, 86vw);
+    gap: 18px;
+  }
+
+  .draw-match {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .draw-match-meta {
+    font-size: 0.72rem;
+  }
+
+  .draw-team {
+    min-height: 46px;
+    padding: 9px 10px;
+    gap: 8px;
+  }
+
+  .draw-team-name {
+    font-size: 0.98rem;
+  }
+
+  .draw-team-owner,
+  .draw-team-badge {
+    font-size: 0.74rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .insight-list-results {
+    grid-template-columns: 1fr;
+  }
+
+  .draw-scroll {
+    padding-right: 2px;
+  }
+
+  .draw-grid {
+    --draw-row-size: 82px;
+    --draw-row-gap: 10px;
+    grid-auto-columns: minmax(214px, 90vw);
+    gap: 14px;
+  }
+
+  .draw-match-advances::before {
+    right: -16px;
+    width: 16px;
+  }
+
+  .draw-match-linked::after,
+  .draw-team-connected::before {
+    left: -12px;
+  }
+
+  .draw-team-connected::before {
+    width: 12px;
   }
 }

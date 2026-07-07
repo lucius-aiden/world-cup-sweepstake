@@ -47,7 +47,7 @@
             <p class="section-copy">{{ section.description }}</p>
           </div>
           {% if section.items %}
-          <ul class="insight-list{% if section.title == 'Latest Results' %} insight-list-results{% endif %}">
+          <ul class="insight-list{% if section.title == 'Latest Results' %} insight-list-results{% endif %}"{% if section.title == 'Latest Results' %} style="--results-columns: {{ 5 if section.items|length >= 10 else 4 if section.items|length >= 8 else 3 if section.items|length >= 6 else 2 }};"{% endif %}>
             {% for item in section.items %}
             <li class="insight-item tone-{{ item.tone }}">
               <strong>{{ item.title }}</strong>
