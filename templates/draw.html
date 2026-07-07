@@ -57,7 +57,7 @@
                 <article class="draw-match{% if match.round_index > 0 %} draw-match-linked{% endif %}{% if match.placeholder %} draw-match-placeholder{% endif %}" style="grid-row: {{ match.row_start }} / span 1; --draw-source-gap: {{ match.source_gap }};">
                   <div class="draw-match-meta">{{ match.detail }}</div>
                   {% for team in [match.home_team, match.away_team] %}
-                  <div class="draw-team{% if team.eliminated %} draw-team-eliminated{% endif %}{% if team.won %} draw-team-won{% endif %}{% if team.placeholder %} draw-team-placeholder{% endif %}">
+                  <div class="draw-team draw-team-{% if loop.first %}home{% else %}away{% endif %}{% if match.round_index > 0 %} draw-team-connected{% endif %}{% if team.eliminated %} draw-team-eliminated{% endif %}{% if team.won %} draw-team-won{% endif %}{% if team.placeholder %} draw-team-placeholder{% endif %}">
                     <div class="draw-team-main">
                       <span class="draw-team-name">{{ team.flag }} {{ team.team_name }}</span>
                       {% if team.owner_label %}

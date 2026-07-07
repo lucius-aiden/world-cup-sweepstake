@@ -462,7 +462,7 @@ def _build_insight_sections(
         [match for match in matches_rows if _is_completed(match)],
         key=lambda match: str(match["match_date"]),
         reverse=True,
-    )[:8]
+    )
     latest_knockouts: list[InsightItemView] = []
 
     if knockout_active:
@@ -514,6 +514,7 @@ def _build_insight_sections(
                 str(row["team_name"]).lower(),
             ),
         )[:5]
+    latest_results_limit = max(1, len(latest_knockouts)) if latest_knockouts else 5
     top_match_count = len(upcoming_today) if upcoming_today else 3
     biggest_winners = sorted(
         [match for match in completed_recent if _goal_margin(match) > 0],
@@ -606,13 +607,13 @@ def _build_insight_sections(
         ),
         InsightSectionView(
             title="Latest Results",
-            description="Latest results show the eight most recent completed matches.",
+            description="Latest results show the most recent completed matches, trimmed to keep pace with the knockout view.",
             items=[
                 InsightItemView(
                     title=_match_scoreline(match),
                     detail=_match_meta(match, display_zone),
                 )
-                for match in latest_results[:8]
+                for match in latest_results[:latest_results_limit]
             ],
             empty_message="Waiting for the first result.",
         ),

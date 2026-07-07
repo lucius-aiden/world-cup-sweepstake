@@ -41,7 +41,7 @@
 
       <section class="insight-grid">
         {% for section in view.insight_sections %}
-        <article class="panel insight-panel{% if section.title == 'Latest Results' %} insight-panel-wide{% endif %}">
+        <article class="panel insight-panel">
           <div class="section-header">
             <h2>{{ section.title }}</h2>
             <p class="section-copy">{{ section.description }}</p>
