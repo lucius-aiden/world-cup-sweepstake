@@ -3,4 +3,4 @@ Best performing teams: 🇫🇷 France [Jian], 🇦🇷 Argentina [Shanika], �
 Teams in trouble: 🇨🇴 Colombia [Kristine], 🇪🇬 Egypt [Vito], 🇺🇸 United States [Sadhana]
 Biggest team changes: 🇧🇪 Belgium, 🏴󠁧󠁢󠁥󠁮󠁧󠁿 England, 🇦🇷 Argentina
 Today's key fixtures: No fixtures today
-Full leaderboard: /dev/leaderboard/
+Full leaderboard: /leaderboard/
