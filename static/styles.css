@@ -535,7 +535,7 @@ h3 {
 
 .draw-grid {
   --draw-row-size: 132px;
-  --draw-row-gap: 12px;
+  --draw-row-gap: 7px;
   --draw-column-gap: 26px;
   --draw-link-lane: 14px;
   --draw-link-stroke: 2px;
@@ -552,7 +552,7 @@ h3 {
 .draw-round {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
   overflow: visible;
 }
@@ -805,7 +805,7 @@ h3 {
 
   .draw-grid {
     --draw-row-size: 126px;
-    --draw-row-gap: 10px;
+    --draw-row-gap: 6px;
     --draw-column-gap: 18px;
     --draw-link-lane: 12px;
   }
