@@ -534,8 +534,8 @@ h3 {
 }
 
 .draw-grid {
-  --draw-row-size: 60px;
-  --draw-row-gap: 5px;
+  --draw-row-size: 62px;
+  --draw-row-gap: 6px;
   --draw-column-gap: 26px;
   --draw-link-lane: 14px;
   --draw-link-stroke: 2px;
@@ -598,10 +598,10 @@ h3 {
   grid-template-rows: auto 1fr;
   align-self: stretch;
   box-sizing: border-box;
-  gap: 8px;
+  gap: 9px;
   min-height: 0;
   height: 100%;
-  padding: 10px 12px;
+  padding: 11px 13px;
   border: 1px solid rgba(216, 171, 17, 0.24);
   border-radius: 18px;
   background:
@@ -631,7 +631,7 @@ h3 {
 .draw-match-teams {
   display: grid;
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 7px;
   min-height: 0;
   position: relative;
 }
@@ -684,9 +684,9 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid rgba(216, 171, 17, 0.18);
   border-radius: 14px;
   background: rgba(130, 101, 8, 0.12);
@@ -703,7 +703,7 @@ h3 {
   font-family: "Barlow Condensed", sans-serif;
   font-size: 1.08rem;
   letter-spacing: 0.04em;
-  line-height: 1;
+  line-height: 1.06;
 }
 
 .draw-team-owner {
@@ -809,14 +809,14 @@ h3 {
   }
 
   .draw-grid {
-    --draw-row-size: 56px;
-    --draw-row-gap: 4px;
+    --draw-row-size: 58px;
+    --draw-row-gap: 5px;
     --draw-column-gap: 18px;
     --draw-link-lane: 12px;
   }
 
   .draw-match {
-    padding: 10px;
+    padding: 10px 11px;
     border-radius: 16px;
   }
 
@@ -825,8 +825,8 @@ h3 {
   }
 
   .draw-team {
-    padding: 8px 9px;
-    gap: 8px;
+    padding: 9px 10px;
+    gap: 9px;
   }
 
   .draw-team-name {
