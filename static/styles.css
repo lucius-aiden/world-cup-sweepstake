@@ -534,8 +534,8 @@ h3 {
 }
 
 .draw-grid {
-  --draw-row-size: 62px;
-  --draw-row-gap: 6px;
+  --draw-row-size: 66px;
+  --draw-row-gap: 4px;
   --draw-column-gap: 26px;
   --draw-link-lane: 14px;
   --draw-link-stroke: 2px;
@@ -598,10 +598,10 @@ h3 {
   grid-template-rows: auto 1fr;
   align-self: stretch;
   box-sizing: border-box;
-  gap: 9px;
+  gap: 8px;
   min-height: 0;
   height: 100%;
-  padding: 11px 13px;
+  padding: 12px 14px;
   border: 1px solid rgba(216, 171, 17, 0.24);
   border-radius: 18px;
   background:
@@ -618,7 +618,7 @@ h3 {
   align-items: center;
   justify-self: start;
   width: fit-content;
-  padding: 5px 10px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: rgba(244, 198, 41, 0.08);
   color: var(--muted);
@@ -630,8 +630,9 @@ h3 {
 
 .draw-match-teams {
   display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  grid-template-rows: repeat(2, minmax(48px, 1fr));
+  gap: 8px;
+  align-content: stretch;
   min-height: 0;
   position: relative;
 }
@@ -685,7 +686,7 @@ h3 {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 0;
+  min-height: 48px;
   padding: 10px 12px;
   border: 1px solid rgba(216, 171, 17, 0.18);
   border-radius: 14px;
@@ -703,7 +704,7 @@ h3 {
   font-family: "Barlow Condensed", sans-serif;
   font-size: 1.08rem;
   letter-spacing: 0.04em;
-  line-height: 1.06;
+  line-height: 1.1;
 }
 
 .draw-team-owner {
@@ -809,14 +810,14 @@ h3 {
   }
 
   .draw-grid {
-    --draw-row-size: 58px;
-    --draw-row-gap: 5px;
+    --draw-row-size: 61px;
+    --draw-row-gap: 4px;
     --draw-column-gap: 18px;
     --draw-link-lane: 12px;
   }
 
   .draw-match {
-    padding: 10px 11px;
+    padding: 11px 12px;
     border-radius: 16px;
   }
 
@@ -825,6 +826,7 @@ h3 {
   }
 
   .draw-team {
+    min-height: 44px;
     padding: 9px 10px;
     gap: 9px;
   }
