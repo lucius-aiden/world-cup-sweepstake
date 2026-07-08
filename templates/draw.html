@@ -69,7 +69,7 @@
                 {% endfor %}
               </div>
               {% for match in round.matches %}
-              <article class="draw-match{% if match.placeholder %} draw-match-placeholder{% endif %}" style="grid-row: {{ match.row_start }} / span 1;">
+              <article class="draw-match{% if match.placeholder %} draw-match-placeholder{% endif %}" style="grid-row: {{ match.row_start }} / span 2;">
                 <div class="draw-match-meta">{{ match.detail }}</div>
                 <div class="draw-match-teams">
                   {% for team in [match.home_team, match.away_team] %}
