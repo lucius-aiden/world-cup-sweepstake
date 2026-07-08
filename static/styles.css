@@ -538,6 +538,9 @@ h3 {
   --draw-row-gap: 18px;
   --draw-column-gap: 30px;
   --draw-link-lane: 14px;
+  --draw-link-stroke: 2px;
+  --draw-link-color: rgba(216, 171, 17, 0.44);
+  --draw-link-glow: rgba(244, 198, 41, 0.16);
   display: grid;
   grid-template-columns: repeat(var(--draw-round-count, 1), minmax(0, 1fr));
   gap: var(--draw-column-gap);
@@ -592,6 +595,7 @@ h3 {
     rgba(10, 10, 10, 0.9);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.28);
   position: relative;
+  overflow: visible;
 }
 
 .draw-match-meta {
@@ -617,22 +621,34 @@ h3 {
   position: relative;
 }
 
-.draw-match-linked .draw-match-teams::before {
+.draw-match-linked::before {
   content: "";
   position: absolute;
   left: calc(var(--draw-link-lane) * -1);
-  top: calc(50% - (var(--draw-source-gap, 0) * (var(--draw-row-size) + var(--draw-row-gap))));
-  height: calc(var(--draw-source-gap, 0) * 2 * (var(--draw-row-size) + var(--draw-row-gap)));
-  border-left: 2px solid rgba(216, 171, 17, 0.5);
+  top: calc(50% - (var(--draw-source-gap, 0) * (var(--draw-row-size) + var(--draw-row-gap))) - (var(--draw-link-stroke) / 2));
+  width: var(--draw-link-stroke);
+  height: calc((var(--draw-source-gap, 0) * 2 * (var(--draw-row-size) + var(--draw-row-gap))) + var(--draw-link-stroke));
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(244, 198, 41, 0.06) 0%,
+    var(--draw-link-color) 14%,
+    var(--draw-link-color) 86%,
+    rgba(244, 198, 41, 0.06) 100%
+  );
+  box-shadow: 0 0 12px var(--draw-link-glow);
 }
 
-.draw-match-advances .draw-match-teams::after {
+.draw-match-advances::after {
   content: "";
   position: absolute;
   right: calc(var(--draw-link-lane) * -1);
-  top: 50%;
-  width: calc(var(--draw-link-lane) + 1px);
-  border-top: 2px solid rgba(216, 171, 17, 0.38);
+  top: calc(50% - (var(--draw-link-stroke) / 2));
+  width: calc(var(--draw-link-lane) + 2px);
+  height: var(--draw-link-stroke);
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--draw-link-color) 0%, rgba(244, 198, 41, 0.24) 100%);
+  box-shadow: 0 0 10px rgba(244, 198, 41, 0.1);
 }
 
 .draw-match-placeholder {
@@ -659,9 +675,12 @@ h3 {
   content: "";
   position: absolute;
   left: calc(var(--draw-link-lane) * -1);
-  top: 50%;
-  width: calc(var(--draw-link-lane) + 1px);
-  border-top: 2px solid rgba(216, 171, 17, 0.5);
+  top: calc(50% - (var(--draw-link-stroke) / 2));
+  width: calc(var(--draw-link-lane) + 2px);
+  height: var(--draw-link-stroke);
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(244, 198, 41, 0.22) 0%, var(--draw-link-color) 38%, var(--draw-link-color) 100%);
+  box-shadow: 0 0 10px rgba(244, 198, 41, 0.1);
 }
 
 .draw-team-main {
@@ -839,8 +858,8 @@ h3 {
     gap: 7px;
   }
 
-  .draw-match-linked .draw-match-teams::before,
-  .draw-match-advances .draw-match-teams::after,
+  .draw-match-linked::before,
+  .draw-match-advances::after,
   .draw-team-connected::before {
     content: none;
   }
