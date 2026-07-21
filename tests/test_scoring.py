@@ -133,6 +133,74 @@ def test_enrich_leaderboard_inputs_marks_missing_standings_teams_out_after_knock
     assert leaderboard[0].teams_alive == 0
 
 
+def test_enrich_leaderboard_inputs_keeps_third_place_playoff_teams_on_semi_final_bonus():
+    rows = [
+        {"player": "Jian", "team_slot": 1, "team_name": "France", "team_code": "FRA", "points": 7, "alive": 1},
+        {"player": "Jian", "team_slot": 2, "team_name": "Brazil", "team_code": "BRA", "points": 6, "alive": 0},
+        {"player": "Sarah T", "team_slot": 1, "team_name": "Spain", "team_code": "ESP", "points": 4, "alive": 0},
+        {"player": "Sarah T", "team_slot": 2, "team_name": "England", "team_code": "ENG", "points": 5, "alive": 1},
+    ]
+    standings_rows = [
+        {"team_code": "FRA", "team_name": "France", "group_name": "Group A", "group_position": 1, "played": 3, "points": 7, "alive": 0, "qualification_status": "Eliminated"},
+        {"team_code": "BRA", "team_name": "Brazil", "group_name": "Group B", "group_position": 2, "played": 3, "points": 6, "alive": 0, "qualification_status": "Eliminated"},
+        {"team_code": "ESP", "team_name": "Spain", "group_name": "Group C", "group_position": 3, "played": 3, "points": 4, "alive": 0, "qualification_status": "Eliminated"},
+        {"team_code": "ENG", "team_name": "England", "group_name": "Group D", "group_position": 1, "played": 3, "points": 5, "alive": 0, "qualification_status": "Eliminated"},
+    ]
+    matches_rows = [
+        {
+            "match_id": "sf1",
+            "home_team": "France",
+            "home_team_code": "FRA",
+            "away_team": "Portugal",
+            "away_team_code": "POR",
+            "home_score": 0,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-07-08T19:00:00+00:00",
+            "stage": "SEMI_FINALS",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "sf2",
+            "home_team": "Germany",
+            "home_team_code": "GER",
+            "away_team": "England",
+            "away_team_code": "ENG",
+            "home_score": 0,
+            "away_score": 2,
+            "status": "FINISHED",
+            "match_date": "2026-07-09T19:00:00+00:00",
+            "stage": "SEMI_FINALS",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "third",
+            "home_team": "France",
+            "home_team_code": "FRA",
+            "away_team": "England",
+            "away_team_code": "ENG",
+            "home_score": 2,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-07-12T15:00:00+00:00",
+            "stage": "THIRD_PLACE",
+            "winner": "HOME_TEAM",
+        },
+    ]
+
+    enriched = enrich_leaderboard_inputs(rows, standings_rows, matches_rows)
+    by_code = {row["team_code"]: row for row in enriched}
+
+    assert by_code["FRA"]["advancement_bonus"] == 40
+    assert by_code["ENG"]["advancement_bonus"] == 40
+    assert by_code["FRA"]["alive"] == 0
+    assert by_code["ENG"]["alive"] == 0
+
+    leaderboard, _ = build_leaderboard(enriched, previous_ranks={})
+    assert leaderboard[0].teams_alive == 0
+    assert leaderboard[1].teams_alive == 0
+
+
 def test_enrich_leaderboard_inputs_uses_group_matches_when_standings_are_missing():
     rows = [
         {"player": "Bob", "team_slot": 1, "team_name": "Belgium", "team_code": "BEL", "points": 2, "alive": 1},

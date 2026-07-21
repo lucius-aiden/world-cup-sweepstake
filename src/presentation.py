@@ -1050,9 +1050,9 @@ def _fixture_day_window(now_local: datetime, fixture_day_ends_hour: int) -> tupl
 def _leaderboard_blurb() -> str:
     return (
         "Each participant has two teams. Group-stage matches score 3 points for a win, "
-        "1 for a draw, and 0 for a loss. Once the knockout rounds begin, teams get a "
-        "stage bonus that increases by round: 10 for the round of 32, 20 for the round of 16, "
-        "30 for quarter-finals, 40 for semi-finals, and 50 for the champion. "
+        "1 for a draw, and 0 for a loss. Once the knockout rounds begin, teams get the "
+        "bonus for the deepest round they reach: 10 for the round of 32, 20 for the round of 16, "
+        "30 for quarter-finals, 40 for semi-finals and the third-place playoff, and 50 for the final. "
         "Rankings are based on total points, with teams still alive only used to break ties."
     )
 

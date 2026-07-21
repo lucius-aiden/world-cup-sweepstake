@@ -11,6 +11,7 @@ class KnockoutContext:
     stage_label: str | None
     advancement_bonus: int
     latest_elimination_match: dict[str, Any] | None = None
+    is_active: bool = False
 
 
 def enrich_leaderboard_inputs(
@@ -79,6 +80,7 @@ def build_knockout_context(
             contexts[team_code] = KnockoutContext(
                 stage_label=_stage_label(next_match.get("stage")),
                 advancement_bonus=stage_bonus(next_match.get("stage")),
+                is_active=True,
             )
             continue
 
@@ -88,18 +90,20 @@ def build_knockout_context(
 
         winning_code = winner_code(latest)
         if _stage_label(latest.get("stage")) == "Final" and winning_code == team_code:
-            contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50)
+            contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50, is_active=False)
         elif winning_code == team_code:
             next_stage = next_stage_label(latest.get("stage"))
             contexts[team_code] = KnockoutContext(
                 stage_label=next_stage,
                 advancement_bonus=stage_bonus(next_stage),
+                is_active="THIRD" not in str(latest.get("stage") or "").upper(),
             )
         elif winning_code:
             contexts[team_code] = KnockoutContext(
                 stage_label=f'Eliminated in {_stage_label(latest.get("stage"))}',
                 advancement_bonus=stage_bonus(latest.get("stage")),
                 latest_elimination_match=latest,
+                is_active=False,
             )
         else:
             alive = alive_flag(standings_by_code.get(team_code, {}).get("alive", 1))
@@ -115,6 +119,7 @@ def build_knockout_context(
                     else stage_bonus(latest.get("stage"))
                 ),
                 latest_elimination_match=None if alive else latest,
+                is_active=alive,
             )
     return contexts
 
@@ -128,7 +133,7 @@ def effective_alive(
     knockout_active: bool,
 ) -> bool:
     if knockout_active and knockout_context is not None:
-        return knockout_context.latest_elimination_match is None
+        return knockout_context.is_active
     if knockout_active:
         merged_group_context = dict(group_context or {})
         if standing:
@@ -156,6 +161,8 @@ def is_knockout_stage(stage: Any) -> bool:
 
 def stage_bonus(stage: Any) -> int:
     value = str(stage or "").upper()
+    if "THIRD" in value:
+        return 40
     if "FINAL" in value and "SEMI" not in value and "QUARTER" not in value:
         return 50
     if "SEMI" in value:
@@ -179,6 +186,8 @@ def next_stage_label(stage: Any) -> str:
         return "Semi-finals"
     if "SEMI" in value:
         return "Final"
+    if "THIRD" in value:
+        return "Third place"
     if "FINAL" in value:
         return "Champion"
     return "Knockout stage"
