@@ -117,8 +117,9 @@ def test_build_static_site_writes_two_page_bundle_and_daily_message(tmp_path, mo
     assert "How Scoring Works" in leaderboard_html
     assert "Each participant has two teams." in leaderboard_html
     assert "10 for the round of 32" in leaderboard_html
-    assert "40 for semi-finals and the third-place playoff" in leaderboard_html
-    assert "50 for the final" in leaderboard_html
+    assert "another 20 for the round of 16" in leaderboard_html
+    assert "another 40 for semi-finals and the third-place playoff" in leaderboard_html
+    assert "another 50 for the final" in leaderboard_html
     assert "Top Scorers" in index_html
     assert "Kylian Mbappe" in index_html
     assert "Top scorer" in leaderboard_html

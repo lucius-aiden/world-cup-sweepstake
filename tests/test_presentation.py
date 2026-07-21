@@ -680,9 +680,9 @@ def test_knockout_rankings_keep_group_points_and_add_heavy_stage_bonus():
     )
 
     assert [row.player for row in view.leaderboard_rows] == ["Alice", "Bob", "Cara"]
-    assert view.leaderboard_rows[0].total_points == 63
-    assert view.leaderboard_rows[1].total_points == 52
-    assert view.leaderboard_rows[2].total_points == 42
+    assert view.leaderboard_rows[0].total_points == 103
+    assert view.leaderboard_rows[1].total_points == 72
+    assert view.leaderboard_rows[2].total_points == 72
     assert view.leaderboard_rows[0].team_1.group_label == "Eliminated in Round of 16"
     assert view.leaderboard_rows[0].team_2.group_label == "Quarter-finals"
     assert view.leaderboard_rows[2].team_1.group_label == "Quarter-finals"
@@ -1253,5 +1253,5 @@ def test_team_one_stage_further_always_beats_group_stage_gap():
     )
 
     assert [row.player for row in view.leaderboard_rows] == ["Bob", "Alice"]
-    assert view.leaderboard_rows[0].total_points == 30
-    assert view.leaderboard_rows[1].total_points == 29
+    assert view.leaderboard_rows[0].total_points == 60
+    assert view.leaderboard_rows[1].total_points == 39

@@ -191,8 +191,8 @@ def test_enrich_leaderboard_inputs_keeps_third_place_playoff_teams_on_semi_final
     enriched = enrich_leaderboard_inputs(rows, standings_rows, matches_rows)
     by_code = {row["team_code"]: row for row in enriched}
 
-    assert by_code["FRA"]["advancement_bonus"] == 40
-    assert by_code["ENG"]["advancement_bonus"] == 40
+    assert by_code["FRA"]["advancement_bonus"] == 100
+    assert by_code["ENG"]["advancement_bonus"] == 100
     assert by_code["FRA"]["alive"] == 0
     assert by_code["ENG"]["alive"] == 0
 
