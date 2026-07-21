@@ -201,6 +201,80 @@ def test_enrich_leaderboard_inputs_keeps_third_place_playoff_teams_on_semi_final
     assert leaderboard[1].teams_alive == 0
 
 
+def test_enrich_leaderboard_inputs_gives_champion_full_cumulative_bonus():
+    rows = [
+        {"player": "Patricia L", "team_slot": 1, "team_name": "Spain", "team_code": "ESP", "points": 7, "alive": 1},
+        {"player": "Patricia L", "team_slot": 2, "team_name": "Austria", "team_code": "AUT", "points": 4, "alive": 0},
+    ]
+    standings_rows = [
+        {"team_code": "ESP", "team_name": "Spain", "group_name": "Group A", "group_position": 1, "played": 3, "points": 7, "alive": 0, "qualification_status": "Eliminated"},
+        {"team_code": "AUT", "team_name": "Austria", "group_name": "Group B", "group_position": 2, "played": 3, "points": 4, "alive": 0, "qualification_status": "Eliminated"},
+    ]
+    matches_rows = [
+        {
+            "match_id": "r32",
+            "home_team": "Spain",
+            "home_team_code": "ESP",
+            "away_team": "Austria",
+            "away_team_code": "AUT",
+            "home_score": 3,
+            "away_score": 0,
+            "status": "FINISHED",
+            "match_date": "2026-07-02T19:00:00+00:00",
+            "stage": "LAST_32",
+            "winner": "HOME_TEAM",
+        },
+        {
+            "match_id": "qf",
+            "home_team": "Spain",
+            "home_team_code": "ESP",
+            "away_team": "Belgium",
+            "away_team_code": "BEL",
+            "home_score": 2,
+            "away_score": 1,
+            "status": "FINISHED",
+            "match_date": "2026-07-10T19:00:00+00:00",
+            "stage": "QUARTER_FINALS",
+            "winner": "HOME_TEAM",
+        },
+        {
+            "match_id": "sf",
+            "home_team": "France",
+            "home_team_code": "FRA",
+            "away_team": "Spain",
+            "away_team_code": "ESP",
+            "home_score": 0,
+            "away_score": 2,
+            "status": "FINISHED",
+            "match_date": "2026-07-14T19:00:00+00:00",
+            "stage": "SEMI_FINALS",
+            "winner": "AWAY_TEAM",
+        },
+        {
+            "match_id": "final",
+            "home_team": "Spain",
+            "home_team_code": "ESP",
+            "away_team": "Argentina",
+            "away_team_code": "ARG",
+            "home_score": 1,
+            "away_score": 0,
+            "status": "FINISHED",
+            "match_date": "2026-07-19T19:00:00+00:00",
+            "stage": "FINAL",
+            "winner": "HOME_TEAM",
+        },
+    ]
+
+    enriched = enrich_leaderboard_inputs(rows, standings_rows, matches_rows)
+    by_code = {row["team_code"]: row for row in enriched}
+
+    assert by_code["ESP"]["advancement_bonus"] == 150
+    assert by_code["ESP"]["alive"] == 0
+
+    leaderboard, _ = build_leaderboard(enriched, previous_ranks={})
+    assert leaderboard[0].total_points == 171
+
+
 def test_enrich_leaderboard_inputs_uses_group_matches_when_standings_are_missing():
     rows = [
         {"player": "Bob", "team_slot": 1, "team_name": "Belgium", "team_code": "BEL", "points": 2, "alive": 1},

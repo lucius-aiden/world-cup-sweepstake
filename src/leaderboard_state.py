@@ -90,7 +90,11 @@ def build_knockout_context(
 
         winning_code = winner_code(latest)
         if _stage_label(latest.get("stage")) == "Final" and winning_code == team_code:
-            contexts[team_code] = KnockoutContext(stage_label="Champion", advancement_bonus=50, is_active=False)
+            contexts[team_code] = KnockoutContext(
+                stage_label="Champion",
+                advancement_bonus=stage_bonus(latest.get("stage")),
+                is_active=False,
+            )
         elif winning_code == team_code:
             next_stage = next_stage_label(latest.get("stage"))
             contexts[team_code] = KnockoutContext(
